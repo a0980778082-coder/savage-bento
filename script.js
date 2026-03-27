@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbxDDhl0i7b17T5ujFeM2zC_IjOoKrOlz3R9ih8ZO-cT9_R2mQbEPBKoYuLNSWO3p9zB/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyBESdAi94VoMo8AAa_1FgRfWA-qyL-SUxsqUuQhSmdqof81gyRSAKEiTRRPkemc6j5/exec"; 
 
 let allData = [];
 let currentMode = 'thisWeek';
@@ -7,20 +7,19 @@ async function loadRealData() {
     const list = document.getElementById('schedule-list');
     list.innerHTML = '<p class="msg">正在讀取最新班表...</p>';
     try {
-        const response = await fetch(API_URL);
+        const response = await fetch(API_URL, { cache: 'no-cache' });
         allData = await response.json();
         showThisWeek(); 
-    } catch (error) { list.innerHTML = '<p class="msg">⚠️ 讀取失敗</p>'; }
+    } catch (error) {
+        list.innerHTML = '<p class="msg">⚠️ 讀取失敗</p>';
+    }
 }
 
-// 修正 ISO 日期格式 (2026-03-25T...) 為好讀格式 (03/26)
 function formatDate(dateStr) {
     if (!dateStr) return "";
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
-    const mm = (d.getMonth() + 1).toString().padStart(2, '0');
-    const dd = d.getDate().toString().padStart(2, '0');
-    return `${mm}/${dd}`;
+    return `${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getDate().toString().padStart(2, '0')}`;
 }
 
 function renderSchedule(data) {
@@ -82,21 +81,37 @@ function filterSchedule() {
     renderSchedule(filtered);
 }
 
-function toggleModal(show) { document.getElementById('off-form-modal').style.display = show ? 'flex' : 'none'; }
+function toggleModal(show) {
+    document.getElementById('off-form-modal').style.display = show ? 'flex' : 'none';
+}
 
+// 送出申請並檢查是否重複
 async function submitOffRequest() {
     const name = document.getElementById('offName').value;
-    const time = document.getElementById('offTime').value;
-    const date = document.getElementById('offDate').value;
+    const dateInput = document.getElementById('offDate').value;
     const note = document.getElementById('offNote').value;
     const btn = document.getElementById('submitBtn');
 
-    if (!name || !date) return alert("請選擇姓名與日期");
+    if (!name || !dateInput) return alert("請選擇姓名與日期");
+
+    // 防呆機制：檢查該日期是否已經有人排休或排班
+    const targetDate = formatDate(dateInput);
+    const conflict = allData.find(item => formatDate(item.date) === targetDate);
+
+    if (conflict) {
+        const confirmMsg = `⚠️ 提醒：${targetDate} 已經有「${conflict.employeeName}」排定班表了！\n\n如果這天人手不足，請先與同事協調好再送出。\n\n確定要繼續申請嗎？`;
+        if (!confirm(confirmMsg)) return;
+    }
+
     btn.disabled = true;
     btn.innerText = "傳送中...";
     try {
-        await fetch(API_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ name, time, date, note }) });
-        alert("申請已成功送出！");
+        await fetch(API_URL, { 
+            method: 'POST', 
+            mode: 'no-cors', 
+            body: JSON.stringify({ name, date: dateInput, note, time: "全天排休" }) 
+        });
+        alert("排休申請已成功送出！");
         toggleModal(false);
     } catch (e) { alert("傳送失敗"); }
     finally { btn.disabled = false; btn.innerText = "送出申請"; }

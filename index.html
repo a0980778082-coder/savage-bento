@@ -10,11 +10,11 @@
     <div id="app">
         <header>
             <h1>小野人餐盒製造所</h1>
-            <div class="subtitle">新版排班管理系統</div>
+            <div class="subtitle">員工排休申請系統</div>
         </header>
 
         <section class="search-bar">
-            <input type="text" id="nameFilter" placeholder="搜尋姓名 (例：小金)..." oninput="filterSchedule()">
+            <input type="text" id="nameFilter" placeholder="搜尋姓名 (例：玲玲)..." oninput="filterSchedule()">
             <div id="week-display" class="week-label">載入中...</div>
         </section>
 
@@ -26,8 +26,7 @@
 
         <div id="off-form-modal" class="modal" style="display:none;">
             <div class="modal-content">
-                <h3>排班/排休申請</h3>
-                
+                <h3>申請排休</h3>
                 <label>員工姓名</label>
                 <select id="offName">
                     <option value="">請選擇您的姓名</option>
@@ -38,19 +37,11 @@
                     <option value="小金">小金</option>
                 </select>
 
-                <label>選擇時段 (或申請休假)</label>
-                <select id="offTime">
-                    <option value="9:00~14:00">1. 9:00~14:00</option>
-                    <option value="9:00~20:00(空班4hr)">2. 9:00~20:00 (空班4小時)</option>
-                    <option value="16:00~20:00">3. 16:00~20:00</option>
-                    <option value="個人排休">個人排休 (不排班)</option>
-                </select>
-                
-                <label>選擇日期</label>
+                <label>選擇排休日期</label>
                 <input type="date" id="offDate">
                 
                 <label>備註 (選填)</label>
-                <textarea id="offNote" placeholder="例如：診所看診..." rows="2"></textarea>
+                <textarea id="offNote" placeholder="例如：家中有事、診所看診..." rows="2"></textarea>
                 
                 <div class="modal-btns">
                     <button id="submitBtn" onclick="submitOffRequest()">送出申請</button>
@@ -62,7 +53,7 @@
         <nav class="tab-bar">
             <button id="btn-thisweek" class="active" onclick="showThisWeek()">本週班表</button>
             <button id="btn-all" onclick="showAll()">顯示全部</button>
-            <button onclick="toggleModal(true)">申請排休</button>
+            <button onclick="toggleModal(true)" style="background: #e74c3c; color: white; font-weight: bold;">我要排休</button>
         </nav>
     </div>
     <script src="script.js"></script>
