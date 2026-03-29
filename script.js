@@ -6,7 +6,7 @@ let currentMode = 'thisWeek';
 async function loadRealData() {
     const list = document.getElementById('schedule-list');
     list.innerHTML = '<p class="msg">正在讀取最新班表...</p>';
-    try {
+    try {s
         const response = await fetch(API_URL, { cache: 'no-cache' });
         allData = await response.json();
         showThisWeek(); 
