@@ -2,12 +2,13 @@ const API_URL = "https://script.google.com/macros/s/AKfycbyBESdAi94VoMo8AAa_1FgR
 
 let allData = [];
 
+// 讀取資料後，現在預設會執行 showToday() 顯示今天
 async function loadRealData() {
     const list = document.getElementById('schedule-list');
     try {
         const response = await fetch(API_URL, { cache: 'no-cache' });
         allData = await response.json();
-        showThisWeek(); 
+        showToday(); 
     } catch (error) {
         list.innerHTML = '<p class="msg">⚠️ 讀取中或連線問題...</p>';
     }
@@ -37,7 +38,17 @@ function renderSchedule(data) {
     });
 }
 
+// 🌟 新增：只顯示今天的班表
+function showToday() {
+    updateActiveBtn('btn-today');
+    const todayStr = formatDate(new Date());
+    document.getElementById('week-display').innerText = `今日班表：${todayStr}`;
+    const filtered = allData.filter(item => formatDate(item.date) === todayStr);
+    renderSchedule(filtered);
+}
+
 function showThisWeek() {
+    updateActiveBtn('btn-thisweek');
     const now = new Date();
     const day = now.getDay();
     const diff = day === 0 ? -6 : 1 - day;
@@ -45,6 +56,30 @@ function showThisWeek() {
     const weekDates = Array.from({length: 7}, (_, i) => formatDate(new Date(monday.getTime() + i * 24*60*60*1000)));
     document.getElementById('week-display').innerText = `本週區間：${weekDates[0]} ~ ${weekDates[6]}`;
     renderSchedule(allData.filter(item => weekDates.includes(formatDate(item.date))));
+}
+
+function showAll() {
+    updateActiveBtn('btn-all');
+    document.getElementById('week-display').innerText = "顯示所有班表";
+    renderSchedule(allData);
+}
+
+// 控制下方按鈕的顏色變化
+function updateActiveBtn(id) {
+    ['btn-today', 'btn-thisweek', 'btn-all'].forEach(btnId => {
+        const btn = document.getElementById(btnId);
+        if (btn) btn.classList.remove('active');
+    });
+    const activeBtn = document.getElementById(id);
+    if (activeBtn) activeBtn.classList.add('active');
+}
+
+function filterSchedule() {
+    const keyword = document.getElementById('nameFilter').value.trim().toLowerCase();
+    const filtered = allData.filter(item => 
+        (item.employeeName || "").toLowerCase().includes(keyword) || formatDate(item.date).includes(keyword)
+    );
+    renderSchedule(filtered);
 }
 
 function toggleModal(show) {
