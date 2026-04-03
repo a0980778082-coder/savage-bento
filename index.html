@@ -10,7 +10,7 @@
     <div id="app">
         <header>
             <h1>小野人餐盒製造所</h1>
-            <div class="subtitle">員工排休申請系統</div>
+            <div class="subtitle">員工排休與班表系統</div>
         </header>
 
         <section class="search-bar">
@@ -26,22 +26,23 @@
 
         <div id="off-form-modal" class="modal" style="display:none;">
             <div class="modal-content">
-                <h3>申請排休</h3>
-                <label>員工姓名</label>
-<select id="offName">
-    <option value="">請選擇您的姓名</option>
-    <option value="寀菁">寀菁</option>
-    <option value="玲玲">玲玲</option>
-    <option value="曉君">曉君</option> <option value="妏妏">妏妏</option>
-    <option value="子怡">子怡</option>
-    <option value="小金">小金</option>
-</select>
+                <h3>申請排休 / 找代班</h3>
+                <label>員工姓名 (申請人)</label>
+                <select id="offName">
+                    <option value="">請選擇您的姓名</option>
+                    <option value="寀菁">寀菁</option>
+                    <option value="玲玲">玲玲</option>
+                    <option value="曉君">曉君</option>
+                    <option value="妏妏">妏妏</option>
+                    <option value="子怡">子怡</option>
+                    <option value="小金">小金</option>
+                </select>
 
-                <label>選擇排休日期</label>
+                <label>選擇日期</label>
                 <input type="date" id="offDate">
                 
-                <label>備註 (選填)</label>
-                <textarea id="offNote" placeholder="例如：家中有事、診所看診..." rows="2"></textarea>
+                <label>備註 (必填，若有找代班請註明)</label>
+                <textarea id="offNote" placeholder="例如：家中有事。 或填寫：已請「曉君」代班。" rows="3"></textarea>
                 
                 <div class="modal-btns">
                     <button id="submitBtn" onclick="submitOffRequest()">送出申請</button>
@@ -54,7 +55,7 @@
             <button id="btn-today" class="active" onclick="showToday()">今日</button>
             <button id="btn-thisweek" onclick="showThisWeek()">本週</button>
             <button id="btn-all" onclick="showAll()">全部</button>
-            <button onclick="toggleModal(true)" style="background: #e74c3c; color: white; font-weight: bold;">排休</button>
+            <button onclick="toggleModal(true)" style="background: #e74c3c; color: white; font-weight: bold;">排休/代班</button>
         </nav>
     </div>
     <script src="script.js"></script>

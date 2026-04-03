@@ -2,7 +2,6 @@ const API_URL = "https://script.google.com/macros/s/AKfycbyBESdAi94VoMo8AAa_1FgR
 
 let allData = [];
 
-// 讀取資料後，現在預設會執行 showToday() 顯示今天
 async function loadRealData() {
     const list = document.getElementById('schedule-list');
     try {
@@ -27,10 +26,16 @@ function renderSchedule(data) {
     data.forEach(item => {
         const card = document.createElement('div');
         card.className = 'card';
+        
+        // 🌟 新增：如果時段包含「排休」，字體變紅色，背景變淺紅
+        const isOff = (item.timeSlot || '').includes('排休');
+        const cardStyle = isOff ? 'background-color: #ffeaea; border-left: 5px solid #e74c3c;' : '';
+        const timeStyle = isOff ? 'color: #e74c3c; font-weight: bold;' : '';
+
         card.innerHTML = `
-            <div class="card-info">
+            <div class="card-info" style="${cardStyle}; padding: 10px; border-radius: 8px;">
                 <div class="date">${formatDate(item.date)} (${item.weekday || ''})</div>
-                <div class="time">${item.timeSlot || ''}</div>
+                <div class="time" style="${timeStyle}">${item.timeSlot || ''}</div>
             </div>
             <div class="employee-name">${item.employeeName || ''}</div>
         `;
@@ -38,7 +43,6 @@ function renderSchedule(data) {
     });
 }
 
-// 🌟 新增：只顯示今天的班表
 function showToday() {
     updateActiveBtn('btn-today');
     const todayStr = formatDate(new Date());
@@ -64,7 +68,6 @@ function showAll() {
     renderSchedule(allData);
 }
 
-// 控制下方按鈕的顏色變化
 function updateActiveBtn(id) {
     ['btn-today', 'btn-thisweek', 'btn-all'].forEach(btnId => {
         const btn = document.getElementById(btnId);
@@ -93,6 +96,7 @@ async function submitOffRequest() {
     const btn = document.getElementById('submitBtn');
 
     if (!name || !dateInput) return alert("請填寫姓名與日期");
+    if (!note) return alert("請填寫備註 (例如: 家中有事，或註明代班人)");
 
     const targetDate = formatDate(dateInput);
     const conflict = allData.find(item => formatDate(item.date) === targetDate);
