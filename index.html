@@ -9,8 +9,8 @@
 <body>
     <div id="login-screen">
         <div class="login-card">
-            <h2 style="color: #2c3e50; margin-bottom:5px;">小野人餐盒</h2>
-            <p style="margin-bottom:25px; color: #7f8c8d;">夥伴登入系統</p>
+            <h2 style="color: #2c3e50; margin: 0;">小野人餐盒</h2>
+            <p style="margin: 10px 0 25px; color: #7f8c8d;">夥伴專屬系統</p>
             <select id="loginName">
                 <option value="">選擇您的名字</option>
                 <option value="寀菁">寀菁</option>
@@ -18,7 +18,7 @@
                 <option value="子怡">子怡</option>
                 <option value="小金">小金</option>
             </select>
-            <input type="password" id="loginPin" placeholder="請輸入 4 位密碼" inputmode="numeric">
+            <input type="password" id="loginPin" placeholder="輸入 4 位密碼" inputmode="numeric">
             <button id="loginBtn" onclick="login()">進入系統</button>
         </div>
     </div>
@@ -52,7 +52,7 @@
         </div>
 
         <nav class="tab-bar" style="position: fixed; bottom: 0; left: 0; width: 100%; height: 60px; background: white; border-top: 1px solid #eee; display: flex; align-items: center;">
-            <button onclick="showToday()" class="active" style="flex: 1; background: none; border: none; font-weight: bold; height: 100%;">看今日</button>
+            <button onclick="showToday()" style="flex: 1; background: none; border: none; font-weight: bold; height: 100%;">看今日班表</button>
             <button onclick="toggleModal(true)" style="flex: 1; background:#e74c3c; color:white; border: none; font-weight: bold; height: 100%;">我要排休</button>
         </nav>
     </div>
