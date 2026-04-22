@@ -81,12 +81,21 @@ function showThisWeek() {
     renderSchedule(filtered, "本週全店班表");
 }
 
+// 我的排休 - 進化版：顯示所有已排定的未來假單
 function showMyOff() {
-    updateActiveBtn(2);
-    const filtered = allData.filter(item => 
-        item.employeeName === currentUser && (item.timeSlot || '').includes('排休')
+    updateActive(2); // 切換按鈕顏色
+    
+    // 1. 過濾出：名字符合、且包含「排休」字眼的資料
+    let myOffData = allData.filter(item => 
+        item.employeeName === currentUser && 
+        (item.timeSlot || '').includes('排休')
     );
-    renderSchedule(filtered, `${currentUser} 的排休紀錄`);
+
+    // 2. 排序：依照日期從小到大排 (確保 04/30 會在 05/01 前面)
+    myOffData.sort((a, b) => a.date.localeCompare(b.date));
+
+    // 3. 渲染畫面
+    render(myOffData, `${currentUser} 的後續排休計畫`);
 }
 
 function updateActiveBtn(index) {
