@@ -1,97 +1,62 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbyBESdAi94VoMo8AAa_1FgRfWA-qyL-SUxsqUuQhSmdqof81gyRSAKEiTRRPkemc6j5/exec"; 
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>小野人排班系統 4.0</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="login-screen">
+        <div class="login-card">
+            <h2 style="color: #2c3e50; margin-bottom:5px;">小野人餐盒</h2>
+            <p style="margin-bottom:25px; color: #7f8c8d;">夥伴登入系統</p>
+            <select id="loginName">
+                <option value="">選擇您的名字</option>
+                <option value="寀菁">寀菁</option>
+                <option value="妏妏">妏妏</option>
+                <option value="子怡">子怡</option>
+                <option value="小金">小金</option>
+            </select>
+            <input type="password" id="loginPin" placeholder="請輸入 4 位密碼" inputmode="numeric">
+            <button id="loginBtn" onclick="login()">進入系統</button>
+        </div>
+    </div>
 
-let allData = [];
-let currentUser = "";
-let currentPin = "";
-let selectedDates = [];
+    <div id="main-app" style="display:none;">
+        <header style="display: flex; justify-content: space-between; align-items: center; padding: 15px; background: white; border-bottom: 1px solid #eee;">
+            <span id="user-welcome" style="font-weight: bold; font-size: 1.1em;">載入中...</span>
+            <button onclick="location.reload()" style="background:none; border:1px solid #ccc; font-size:12px; padding:5px 10px; border-radius:5px;">登出</button>
+        </header>
 
-async function login() {
-    currentUser = document.getElementById('loginName').value;
-    currentPin = document.getElementById('loginPin').value;
-    const btn = document.getElementById('loginBtn');
+        <section class="schedule-container" style="padding-bottom: 80px;">
+            <div id="schedule-list"></div>
+        </section>
 
-    if (!currentUser || !currentPin) return alert("請選名字並填密碼");
-
-    btn.innerText = "驗證中...";
-    try {
-        const resp = await fetch(`${API_URL}?name=${encodeURIComponent(currentUser)}&pin=${currentPin}`);
-        const text = await resp.text();
-
-        if (text === "AUTH_FAILED") {
-            alert("❌ 密碼不對喔，請重新輸入！");
-            btn.innerText = "進入系統";
-        } else {
-            allData = JSON.parse(text);
-            document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('main-app').style.display = 'block';
-            document.getElementById('user-welcome').innerText = `👋 您好，${currentUser}`;
-            showToday();
-        }
-    } catch (e) {
-        alert("連線失敗，請檢查網路或大腦網址");
-        btn.innerText = "進入系統";
-    }
-}
-
-function renderSchedule(data) {
-    const list = document.getElementById('schedule-list');
-    list.innerHTML = data.length === 0 ? '<p style="text-align:center; padding:20px;">這天沒排班喔！</p>' : '';
-    data.forEach(item => {
-        const card = document.createElement('div');
-        card.className = 'card';
-        const isOff = (item.timeSlot || '').includes('排休');
-        const style = isOff ? 'border-left: 8px solid #e74c3c; background:#fff5f5;' : 'border-left: 8px solid #27ae60;';
-        card.style = style;
-        card.innerHTML = `
-            <div>
-                <div style="font-weight:bold; font-size:1.1em;">${item.date} (${item.weekday || ''})</div>
-                <div style="color:${isOff ? '#e74c3c' : '#2c3e50'}; margin-top:5px;">${item.timeSlot || ''}</div>
+        <div id="off-form-modal" class="modal" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 100;">
+            <div class="modal-content" style="background: white; padding: 20px; border-radius: 15px; width: 85%; max-width: 400px;">
+                <h3 style="margin-top: 0;">申請排休</h3>
+                <label>選擇日期 (可選多個)：</label>
+                <div style="display:flex; gap:5px; margin-bottom:10px;">
+                    <input type="date" id="offDateInput" style="flex: 1; height: 40px; border: 1px solid #ddd; border-radius: 5px;">
+                    <button onclick="addDateToList()" style="width:50px; height:40px; background:#3498db; color: white; border: none; border-radius: 5px;">+</button>
+                </div>
+                <div id="selected-dates-container" style="min-height: 30px; margin-bottom: 10px;"></div>
+                <label>備註 (原因)：</label>
+                <textarea id="offNote" placeholder="例如：家裡有事" style="width: 100%; height: 60px; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 15px; box-sizing: border-box;"></textarea>
+                <div class="modal-btns" style="display: flex; gap: 10px;">
+                    <button onclick="toggleModal(false)" style="flex: 1; height: 45px; background:#95a5a6; color: white; border: none; border-radius: 8px;">取消</button>
+                    <button onclick="submitMultipleOffRequests()" style="flex: 1; height: 45px; background:#e74c3c; color: white; border: none; border-radius: 8px;">送出申請</button>
+                </div>
             </div>
-            <div style="font-size:1.2em; font-weight:bold; color:#2c3e50;">${item.employeeName || ''}</div>
-        `;
-        list.appendChild(card);
-    });
-}
+        </div>
 
-function showToday() {
-    const now = new Date();
-    const todayStr = `${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getDate().toString().padStart(2, '0')}`;
-    renderSchedule(allData.filter(item => item.date === todayStr));
-}
+        <nav class="tab-bar" style="position: fixed; bottom: 0; left: 0; width: 100%; height: 60px; background: white; border-top: 1px solid #eee; display: flex; align-items: center;">
+            <button onclick="showToday()" class="active" style="flex: 1; background: none; border: none; font-weight: bold; height: 100%;">看今日</button>
+            <button onclick="toggleModal(true)" style="flex: 1; background:#e74c3c; color:white; border: none; font-weight: bold; height: 100%;">我要排休</button>
+        </nav>
+    </div>
 
-function toggleModal(show) {
-    document.getElementById('off-form-modal').style.display = show ? 'flex' : 'none';
-    if(show) { selectedDates = []; updateDateUI(); }
-}
-
-function addDateToList() {
-    const dateInput = document.getElementById('offDateInput');
-    if (!dateInput.value) return;
-    const datePart = dateInput.value.split('-').slice(1).join('/'); // 轉成 04/22 格式
-    if (!selectedDates.includes(datePart)) {
-        selectedDates.push(datePart);
-        updateDateUI();
-    }
-}
-
-function updateDateUI() {
-    const container = document.getElementById('selected-dates-container');
-    container.innerHTML = selectedDates.map(d => `<span style="background:#eee; padding:5px 10px; border-radius:15px; margin:3px; display:inline-block; font-size:14px;">${d}</span>`).join('');
-}
-
-async function submitMultipleOffRequests() {
-    const note = document.getElementById('offNote').value;
-    if (selectedDates.length === 0 || !note) return alert("請選日期並填寫原因");
-
-    if (!confirm(`確定要幫 ${currentUser} 申請這 ${selectedDates.length} 天排休嗎？`)) return;
-
-    for (let date of selectedDates) {
-        await fetch(API_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            body: JSON.stringify({ name: currentUser, pin: currentPin, date: date, note: note })
-        });
-    }
-    alert("✅ 申請成功！");
-    location.reload();
-}
+    <script src="script.js"></script>
+</body>
+</html>
