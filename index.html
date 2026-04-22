@@ -1,22 +1,39 @@
-let currentUser = "";
-let currentPin = "";
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小野人內部系統</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="login-screen" class="modal" style="display:flex; background: #34495e;">
+        <div class="modal-content">
+            <h2>小野人夥伴登入</h2>
+            <select id="loginName">
+                <option value="">請選擇姓名</option>
+                <option value="寀菁">寀菁</option>
+                <option value="妏妏">玲玲</option>
+                <option value="子怡">曉君</option>
+                </select>
+            <input type="password" id="loginPin" placeholder="請輸入 4 位數密碼" inputmode="numeric">
+            <button onclick="login()">進入系統</button>
+        </div>
+    </div>
 
-async function login() {
-    currentUser = document.getElementById('loginName').value;
-    currentPin = document.getElementById('loginPin').value;
-    if (!currentUser || !currentPin) return alert("請填寫姓名與密碼");
+    <div id="main-app" style="display:none;">
+        <header>
+            <h1 id="user-welcome">載入中...</h1>
+            <button onclick="location.reload()" style="font-size:12px; background:none;">登出</button>
+        </header>
+        <section class="schedule-container">
+            <div id="schedule-list"></div>
+        </section>
+        <nav class="tab-bar">
+            <button onclick="toggleModal(true)" style="background: #e74c3c; color: white;">申請排休</button>
+        </nav>
+    </div>
 
-    // 帶著名稱和密碼去跟大腦要資料
-    const resp = await fetch(`${API_URL}?name=${currentUser}&pin=${currentPin}`);
-    const text = await resp.text();
-
-    if (text === "AUTH_FAILED") {
-        alert("❌ 密碼錯誤喔！");
-    } else {
-        allData = JSON.parse(text);
-        document.getElementById('login-screen').style.display = 'none';
-        document.getElementById('main-app').style.display = 'block';
-        document.getElementById('user-welcome').innerText = `你好，${currentUser}`;
-        renderSchedule(allData);
-    }
-}
+    <script src="script.js"></script>
+</body>
+</html>
