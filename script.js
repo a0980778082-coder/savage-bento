@@ -1,4 +1,4 @@
-const API_URL = "您的最新部署網址"; 
+const API_URL = "https://script.google.com/macros/s/AKfycbyBESdAi94VoMo8AAa_1FgRfWA-qyL-SUxsqUuQhSmdqof81gyRSAKEiTRRPkemc6j5/exec"; 
 
 let allData = [];
 let currentUser = "";
