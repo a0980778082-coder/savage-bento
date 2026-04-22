@@ -10,40 +10,39 @@ async function login() {
     currentUser = document.getElementById('loginName').value;
     currentPin = document.getElementById('loginPin').value;
     const btn = document.getElementById('loginBtn');
-    if (!currentUser || !currentPin) return alert("請選名字並填密碼");
+    if (!currentUser || !currentPin) return alert("請選擇名字並填寫密碼喔！");
 
     btn.innerText = "驗證中...";
     try {
         const resp = await fetch(`${API_URL}?name=${encodeURIComponent(currentUser)}&pin=${currentPin}`);
         const text = await resp.text();
         if (text === "AUTH_FAILED") {
-            alert("❌ 密碼不對喔！");
+            alert("❌ 密碼不對喔，請重新輸入！");
             btn.innerText = "進入系統";
         } else {
             allData = JSON.parse(text);
             document.getElementById('login-screen').style.display = 'none';
             document.getElementById('main-app').style.display = 'block';
-            document.getElementById('user-welcome').innerText = `你好，${currentUser}`;
-            showToday(); // 預設顯示今日
+            showToday(); // 登入後預設顯示今天
         }
     } catch (e) {
-        alert("連線失敗，請檢查大腦網址");
+        alert("連線失敗，請檢查網路或大腦部署是否設為「所有人」");
         btn.innerText = "進入系統";
     }
 }
 
-// --- 2. 核心渲染 (畫面長相) ---
+// --- 2. 畫面渲染 ---
 function renderSchedule(data, title) {
     document.getElementById('user-welcome').innerText = title;
     const list = document.getElementById('schedule-list');
-    list.innerHTML = data.length === 0 ? '<p style="text-align:center; padding:50px; color:#999;">目前尚無排班資料</p>' : '';
+    list.innerHTML = data.length === 0 ? '<p style="text-align:center; padding:50px; color:#999;">今天沒有人排班喔！</p>' : '';
     
     data.forEach(item => {
         const card = document.createElement('div');
         card.className = 'card';
         const isOff = (item.timeSlot || '').includes('排休');
         
-        // 美化外框：上班綠色，排休紅色
+        // 上班顯示綠條，排休顯示紅條
         card.style = isOff 
             ? 'border-left: 8px solid #e74c3c; background:#fff5f5; margin:10px; padding:15px; border-radius:10px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 4px rgba(0,0,0,0.05);' 
             : 'border-left: 8px solid #27ae60; background:white; margin:10px; padding:15px; border-radius:10px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 4px rgba(0,0,0,0.05);';
@@ -59,9 +58,7 @@ function renderSchedule(data, title) {
     });
 }
 
-// --- 3. 三大查詢功能 ---
-
-// 今日班表
+// --- 3. 查詢切換 ---
 function showToday() {
     updateActiveBtn(0);
     const now = new Date();
@@ -70,12 +67,11 @@ function showToday() {
     renderSchedule(filtered, `今日班表 (${todayStr})`);
 }
 
-// 本週班表
 function showThisWeek() {
     updateActiveBtn(1);
     const now = new Date();
     const day = now.getDay();
-    const diff = day === 0 ? -6 : 1 - day; // 取得週一
+    const diff = day === 0 ? -6 : 1 - day;
     const monday = new Date(now.setDate(now.getDate() + diff));
     const weekDates = Array.from({length: 7}, (_, i) => {
         const d = new Date(monday.getTime() + i * 24*60*60*1000);
@@ -85,7 +81,6 @@ function showThisWeek() {
     renderSchedule(filtered, "本週全店班表");
 }
 
-// 我的排休 (只看自己的排休紀錄)
 function showMyOff() {
     updateActiveBtn(2);
     const filtered = allData.filter(item => 
@@ -94,15 +89,14 @@ function showMyOff() {
     renderSchedule(filtered, `${currentUser} 的排休紀錄`);
 }
 
-// --- 4. 輔助功能 ---
 function updateActiveBtn(index) {
     const btns = document.querySelectorAll('.tab-bar button');
     btns.forEach((b, i) => {
-        if(i === index) b.style.color = '#e74c3c';
-        else b.style.color = '#7f8c8d';
+        b.style.color = (i === index) ? '#e74c3c' : '#7f8c8d';
     });
 }
 
+// --- 4. 排休申請 ---
 function toggleModal(show) {
     document.getElementById('off-form-modal').style.display = show ? 'flex' : 'none';
     if(show) { selectedDates = []; updateDateUI(); }
@@ -112,11 +106,12 @@ function addDateToList() {
     const dateInput = document.getElementById('offDateInput');
     if (!dateInput.value) return;
     const parts = dateInput.value.split('-');
-    const datePart = `${parts[1]}/${parts[2]}`; // 格式化為 04/22
+    const datePart = `${parts[1]}/${parts[2]}`;
     if (!selectedDates.includes(datePart)) {
         selectedDates.push(datePart);
         updateDateUI();
     }
+    dateInput.value = '';
 }
 
 function updateDateUI() {
@@ -126,7 +121,7 @@ function updateDateUI() {
 
 async function submitMultipleOffRequests() {
     const note = document.getElementById('offNote').value;
-    if (selectedDates.length === 0 || !note) return alert("請選日期並填寫備註");
+    if (selectedDates.length === 0 || !note) return alert("請選擇日期並填寫備註原因");
     if (!confirm(`確定要幫 ${currentUser} 申請這 ${selectedDates.length} 天排休嗎？`)) return;
 
     for (let date of selectedDates) {
@@ -136,6 +131,6 @@ async function submitMultipleOffRequests() {
             body: JSON.stringify({ name: currentUser, pin: currentPin, date: date, note: note })
         });
     }
-    alert("✅ 申請成功！");
+    alert("✅ 申請已送出，請等候更新！");
     location.reload();
 }
