@@ -1,39 +1,97 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>小野人內部系統</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    <div id="login-screen" class="modal" style="display:flex; background: #34495e;">
-        <div class="modal-content">
-            <h2>小野人夥伴登入</h2>
-            <select id="loginName">
-                <option value="">請選擇姓名</option>
-                <option value="寀菁">寀菁</option>
-                <option value="妏妏">妏妏</option>
-                <option value="子怡">子怡</option>
-                </select>
-            <input type="password" id="loginPin" placeholder="請輸入 4 位數密碼" inputmode="numeric">
-            <button onclick="login()">進入系統</button>
-        </div>
-    </div>
+const API_URL = "https://script.google.com/macros/s/AKfycbyBESdAi94VoMo8AAa_1FgRfWA-qyL-SUxsqUuQhSmdqof81gyRSAKEiTRRPkemc6j5/exec"; 
 
-    <div id="main-app" style="display:none;">
-        <header>
-            <h1 id="user-welcome">載入中...</h1>
-            <button onclick="location.reload()" style="font-size:12px; background:none;">登出</button>
-        </header>
-        <section class="schedule-container">
-            <div id="schedule-list"></div>
-        </section>
-        <nav class="tab-bar">
-            <button onclick="toggleModal(true)" style="background: #e74c3c; color: white;">申請排休</button>
-        </nav>
-    </div>
+let allData = [];
+let currentUser = "";
+let currentPin = "";
+let selectedDates = [];
 
-    <script src="script.js"></script>
-</body>
-</html>
+async function login() {
+    currentUser = document.getElementById('loginName').value;
+    currentPin = document.getElementById('loginPin').value;
+    const btn = document.getElementById('loginBtn');
+
+    if (!currentUser || !currentPin) return alert("請選名字並填密碼");
+
+    btn.innerText = "驗證中...";
+    try {
+        const resp = await fetch(`${API_URL}?name=${encodeURIComponent(currentUser)}&pin=${currentPin}`);
+        const text = await resp.text();
+
+        if (text === "AUTH_FAILED") {
+            alert("❌ 密碼不對喔，請重新輸入！");
+            btn.innerText = "進入系統";
+        } else {
+            allData = JSON.parse(text);
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('main-app').style.display = 'block';
+            document.getElementById('user-welcome').innerText = `👋 您好，${currentUser}`;
+            showToday();
+        }
+    } catch (e) {
+        alert("連線失敗，請檢查網路或大腦網址");
+        btn.innerText = "進入系統";
+    }
+}
+
+function renderSchedule(data) {
+    const list = document.getElementById('schedule-list');
+    list.innerHTML = data.length === 0 ? '<p style="text-align:center; padding:20px;">這天沒排班喔！</p>' : '';
+    data.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        const isOff = (item.timeSlot || '').includes('排休');
+        const style = isOff ? 'border-left: 8px solid #e74c3c; background:#fff5f5;' : 'border-left: 8px solid #27ae60;';
+        card.style = style;
+        card.innerHTML = `
+            <div>
+                <div style="font-weight:bold; font-size:1.1em;">${item.date} (${item.weekday || ''})</div>
+                <div style="color:${isOff ? '#e74c3c' : '#2c3e50'}; margin-top:5px;">${item.timeSlot || ''}</div>
+            </div>
+            <div style="font-size:1.2em; font-weight:bold; color:#2c3e50;">${item.employeeName || ''}</div>
+        `;
+        list.appendChild(card);
+    });
+}
+
+function showToday() {
+    const now = new Date();
+    const todayStr = `${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getDate().toString().padStart(2, '0')}`;
+    renderSchedule(allData.filter(item => item.date === todayStr));
+}
+
+function toggleModal(show) {
+    document.getElementById('off-form-modal').style.display = show ? 'flex' : 'none';
+    if(show) { selectedDates = []; updateDateUI(); }
+}
+
+function addDateToList() {
+    const dateInput = document.getElementById('offDateInput');
+    if (!dateInput.value) return;
+    const datePart = dateInput.value.split('-').slice(1).join('/'); // 轉成 04/22 格式
+    if (!selectedDates.includes(datePart)) {
+        selectedDates.push(datePart);
+        updateDateUI();
+    }
+}
+
+function updateDateUI() {
+    const container = document.getElementById('selected-dates-container');
+    container.innerHTML = selectedDates.map(d => `<span style="background:#eee; padding:5px 10px; border-radius:15px; margin:3px; display:inline-block; font-size:14px;">${d}</span>`).join('');
+}
+
+async function submitMultipleOffRequests() {
+    const note = document.getElementById('offNote').value;
+    if (selectedDates.length === 0 || !note) return alert("請選日期並填寫原因");
+
+    if (!confirm(`確定要幫 ${currentUser} 申請這 ${selectedDates.length} 天排休嗎？`)) return;
+
+    for (let date of selectedDates) {
+        await fetch(API_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            body: JSON.stringify({ name: currentUser, pin: currentPin, date: date, note: note })
+        });
+    }
+    alert("✅ 申請成功！");
+    location.reload();
+}
