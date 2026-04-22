@@ -3,31 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>小野人排班系統 2.0</title>
+    <title>小野人排班系統 3.0</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="app">
         <header>
             <h1>小野人餐盒製造所</h1>
-            <div class="subtitle">員工排休與班表系統</div>
+            <div class="subtitle">員工專屬班表與排休系統</div>
         </header>
 
         <section class="search-bar">
-            <input type="text" id="nameFilter" placeholder="搜尋姓名 (例：玲玲)..." oninput="filterSchedule()">
-            <div id="week-display" class="week-label">載入中...</div>
+            <input type="text" id="nameFilter" placeholder="輸入名字看班表 (例：曉君)..." oninput="filterSchedule()">
+            <div id="week-display" class="week-label">讀取中...</div>
         </section>
 
         <section class="schedule-container">
             <div id="schedule-list">
-                <p class="msg">正在讀取最新班表...</p>
+                <p class="msg">正在下載最新班表...</p>
             </div>
         </section>
 
         <div id="off-form-modal" class="modal" style="display:none;">
             <div class="modal-content">
-                <h3>申請排休 / 找代班</h3>
-                <label>員工姓名 (申請人)</label>
+                <h3>一次申請多天排休</h3>
+                <label>員工姓名</label>
                 <select id="offName">
                     <option value="">請選擇您的姓名</option>
                     <option value="寀菁">寀菁</option>
@@ -38,15 +38,22 @@
                     <option value="小金">小金</option>
                 </select>
 
-                <label>選擇日期</label>
-                <input type="date" id="offDate">
+                <label>選擇日期 (選完點擊「新增日期」)</label>
+                <div style="display: flex; gap: 5px;">
+                    <input type="date" id="offDateInput">
+                    <button type="button" onclick="addDateToList()" style="width: auto; padding: 0 15px; background: #27ae60;">＋</button>
+                </div>
                 
-                <label>備註 (必填，若有找代班請註明)</label>
-                <textarea id="offNote" placeholder="例如：家中有事。 或填寫：已請「曉君」代班。" rows="3"></textarea>
+                <div id="selected-dates-container" style="margin-top: 10px; min-height: 40px; border: 1px dashed #ccc; padding: 5px; border-radius: 5px;">
+                    <p style="font-size: 12px; color: #888;">尚未選擇日期</p>
+                </div>
+
+                <label style="margin-top: 10px;">備註 (如：找代班請註明)</label>
+                <textarea id="offNote" placeholder="例如：家中有事" rows="2"></textarea>
                 
                 <div class="modal-btns">
-                    <button id="submitBtn" onclick="submitOffRequest()">送出申請</button>
-                    <button class="cancel-btn" onclick="toggleModal(false)">取消</button>
+                    <button id="submitBtn" onclick="submitMultipleOffRequests()" style="background: #e74c3c;">一次送出所有申請</button>
+                    <button class="cancel-btn" onclick="closeOffModal()">取消</button>
                 </div>
             </div>
         </div>
@@ -54,8 +61,8 @@
         <nav class="tab-bar">
             <button id="btn-today" class="active" onclick="showToday()">今日</button>
             <button id="btn-thisweek" onclick="showThisWeek()">本週</button>
-            <button id="btn-all" onclick="showAll()">全部</button>
-            <button onclick="toggleModal(true)" style="background: #e74c3c; color: white; font-weight: bold;">排休/代班</button>
+            <button id="btn-my-off" onclick="showOnlyMyOff()" style="background: #f39c12; color: white;">我的排休</button>
+            <button onclick="toggleModal(true)" style="background: #e74c3c; color: white; font-weight: bold;">申請排休</button>
         </nav>
     </div>
     <script src="script.js"></script>
