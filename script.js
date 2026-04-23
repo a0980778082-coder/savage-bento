@@ -1,15 +1,16 @@
-// 請務必確認 API_URL 是最新部署的那一串！
 const API_URL = "https://script.google.com/macros/s/AKfycbyBESdAi94VoMo8AAa_1FgRfWA-qyL-SUxsqUuQhSmdqof81gyRSAKEiTRRPkemc6j5/exec"; 
 
 let scheduleData = [];
 let offRequestsData = [];
 let currentUser = "";
 let currentPin = "";
+let selectedDates = [];
 
+// 1. 登入邏輯
 async function login() {
     currentUser = document.getElementById('loginName').value;
     currentPin = document.getElementById('loginPin').value;
-    if (!currentUser || !currentPin) return alert("請選名字並填密碼");
+    if (!currentUser || !currentPin) return alert("請選名字並輸入密碼");
 
     const btn = document.getElementById('loginBtn');
     btn.innerText = "驗證中...";
@@ -33,13 +34,14 @@ async function login() {
     }
 }
 
+// 2. 畫面渲染
 function render(data, title, type = 'schedule') {
     document.getElementById('user-welcome').innerText = title;
     const list = document.getElementById('schedule-list');
     list.innerHTML = "";
 
     if (!data || data.length === 0) {
-        list.innerHTML = `<p style="text-align:center; padding:50px; color:#999;">查無 ${title} 紀錄</p>`;
+        list.innerHTML = `<p style="text-align:center; padding:50px; color:#999;">目前查無 ${title} 紀錄</p>`;
         return;
     }
     
@@ -49,7 +51,7 @@ function render(data, title, type = 'schedule') {
         const s = type === 'off' ? item["申請時段"] : item.timeSlot;
         const note = type === 'off' ? (item["備註"] || "") : "";
 
-        // 過濾掉舊名字
+        // 過濾舊名防呆
         if (n === "宋菁" || n === "小金") return;
 
         const card = document.createElement('div');
@@ -67,19 +69,15 @@ function render(data, title, type = 'schedule') {
     });
 }
 
+// 3. 查詢切換
 function showToday() {
     updateActive(0);
     const now = new Date();
-    // 強制取得台灣時間的 MM/dd
-    const today = Utilities_FormatDate(now);
+    const m = (now.getMonth() + 1).toString().padStart(2, '0');
+    const d = now.getDate().toString().padStart(2, '0');
+    const today = `${m}/${d}`;
     const filtered = scheduleData.filter(i => i.date === today);
     render(filtered, `今日班表 (${today})`);
-}
-
-function Utilities_FormatDate(date) {
-    const m = (date.getMonth() + 1).toString().padStart(2, '0');
-    const d = date.getDate().toString().padStart(2, '0');
-    return `${m}/${d}`;
 }
 
 function showThisWeek() {
@@ -98,4 +96,44 @@ function updateActive(idx) {
     btns.forEach((b, i) => b.style.color = (i===idx)? '#e74c3c' : '#7f8c8d');
 }
 
-// 申請排休功能 (toggleModal, addDateToList, submitMultipleOffRequests 保持不變)
+// 4. 排休申請邏輯
+function toggleModal(s) {
+    document.getElementById('off-form-modal').style.display = s ? 'flex' : 'none';
+    if(s) { selectedDates = []; updateDateUI(); }
+}
+
+function addDateToList() {
+    const input = document.getElementById('offDateInput');
+    if (!input.value) return;
+    const parts = input.value.split('-');
+    const d = `${parts[1]}/${parts[2]}`;
+    if (!selectedDates.includes(d)) {
+        selectedDates.push(d);
+        updateDateUI();
+    }
+    input.value = '';
+}
+
+function updateDateUI() {
+    document.getElementById('selected-dates-container').innerHTML = selectedDates.map(d => `<span style="background:#eee; padding:5px 10px; border-radius:15px; margin:3px; display:inline-block; font-size:13px;">${d}</span>`).join('');
+}
+
+async function submitMultipleOffRequests() {
+    const note = document.getElementById('offNote').value;
+    if (selectedDates.length === 0 || !note) return alert("請選日期並填寫原因");
+    if (!confirm(`確定要申請這 ${selectedDates.length} 天排休嗎？`)) return;
+
+    try {
+        for (let date of selectedDates) {
+            await fetch(API_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: JSON.stringify({ name: currentUser, pin: currentPin, date: date, note: note })
+            });
+        }
+        alert("✅ 申請成功！");
+        location.reload();
+    } catch (e) {
+        alert("❌ 傳送失敗");
+    }
+}
