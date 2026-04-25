@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>小野人排班系統 4.0</title>
+    <title>小野人排班系統 4.1</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body style="margin: 0; background-color: #f4f7f6; font-family: -apple-system, sans-serif;">
     <div id="login-screen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #34495e; display: flex; justify-content: center; align-items: center; z-index: 1000;">
-        <div style="background: white; padding: 30px; border-radius: 20px; width: 85%; max-width: 350px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+        <div style="background: white; padding: 30px; border-radius: 20px; width: 85%; max-width: 350px; text-align: center;">
             <h2 style="color: #2c3e50; margin: 0;">小野人餐盒</h2>
             <p style="margin: 10px 0 25px; color: #7f8c8d;">夥伴專屬系統</p>
-            <select id="loginName" style="width: 100%; height: 55px; margin-bottom: 15px; padding: 10px; font-size: 18px; border: 1px solid #ddd; border-radius: 12px; background: #fafafa;">
+            <select id="loginName" style="width: 100%; height: 55px; margin-bottom: 15px; padding: 10px; font-size: 18px; border: 1px solid #ddd; border-radius: 12px;">
                 <option value="">選擇您的名字</option>
                 <option value="信雄">信雄</option>
                 <option value="寀菁">寀菁</option>
@@ -29,6 +29,16 @@
             <button onclick="location.reload()" style="background:none; border:1px solid #ccc; font-size:12px; padding:5px 10px; border-radius:5px;">登出</button>
         </header>
 
+        <div id="filter-bar" style="background: white; padding: 10px; display: none; align-items: center; justify-content: center; border-bottom: 1px solid #eee; gap: 10px;">
+            <label style="font-size: 14px; font-weight: bold; color: #7f8c8d;">篩選月份：</label>
+            <select id="monthFilter" onchange="applyMonthFilter()" style="padding: 5px 15px; border-radius: 8px; border: 1px solid #ddd; font-size: 14px;">
+                <option value="all">顯示全部</option>
+                <option value="04">4月</option>
+                <option value="05">5月</option>
+                <option value="06">6月</option>
+            </select>
+        </div>
+
         <section id="schedule-list" style="padding: 10px 10px 100px 10px;"></section>
 
         <div id="off-form-modal" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 200;">
@@ -39,7 +49,7 @@
                     <input type="date" id="offDateInput" style="flex: 1; height: 40px; border: 1px solid #ddd; border-radius: 5px;">
                     <button onclick="addDateToList()" style="width:50px; background:#3498db; color:white; border:none; border-radius:5px;">+</button>
                 </div>
-                <div id="selected-dates-container" style="margin-bottom: 10px; min-height: 20px;"></div>
+                <div id="selected-dates-container" style="margin-bottom: 10px;"></div>
                 <label>原因備註：</label>
                 <textarea id="offNote" style="width: 100%; height: 60px; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 15px;"></textarea>
                 <div style="display: flex; gap: 10px;">
