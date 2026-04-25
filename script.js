@@ -12,17 +12,15 @@ async function login() {
     currentUser = document.getElementById('loginName').value;
     currentPin = document.getElementById('loginPin').value;
     if (!currentUser || !currentPin) return alert("請選名字並填寫密碼");
-
     const btn = document.getElementById('loginBtn');
     btn.innerText = "驗證中...";
-    btn.disabled = true; // 登入也防連點
+    btn.disabled = true;
     try {
         const resp = await fetch(`${API_URL}?name=${encodeURIComponent(currentUser)}&pin=${currentPin}`);
         const res = await resp.json();
         if (res === "AUTH_FAILED") {
             alert("❌ 密碼錯誤！");
-            btn.innerText = "進入系統";
-            btn.disabled = false;
+            btn.innerText = "進入系統"; btn.disabled = false;
         } else {
             scheduleData = res.schedule || [];
             offRequestsData = res.offRequests || [];
@@ -30,14 +28,10 @@ async function login() {
             document.getElementById('main-app').style.display = 'block';
             showToday();
         }
-    } catch (e) {
-        alert("連線失敗！");
-        btn.innerText = "進入系統";
-        btn.disabled = false;
-    }
+    } catch (e) { alert("連線失敗！"); btn.innerText = "進入系統"; btn.disabled = false; }
 }
 
-// 2. 產生 Google 日曆連結
+// 2. 產生日曆
 function getCalendarLink(dateStr, timeSlot) {
     const year = new Date().getFullYear();
     const [month, day] = dateStr.split('/');
@@ -60,7 +54,6 @@ function render(data, title, type = 'schedule') {
         const s = type === 'off' ? item["申請時段"] : item.timeSlot;
         const note = type === 'off' ? (item["備註"] || "") : "";
         if (n === "宋菁" || n === "小金") return;
-
         const card = document.createElement('div');
         const isOff = type === 'off' || (s && s.includes('排休'));
         card.style = `border-left: 8px solid ${isOff?'#e74c3c':'#27ae60'}; background: white; margin: 12px 0; padding: 15px; border-radius: 12px; box-shadow: 0 3px 6px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center;`;
@@ -77,33 +70,30 @@ function applyMonthFilter() { const month = document.getElementById('monthFilter
 function showMyOff(m = "all") { currentTab = "off"; updateActive(2); document.getElementById('filter-bar').style.display = 'flex'; let myData = offRequestsData.filter(i => String(i["員工姓名"]).trim() === String(currentUser).trim()); if (m !== "all") myData = myData.filter(i => i["申請日期"] && i["申請日期"].startsWith(m)); render(myData, `${currentUser} 的 ${m === 'all' ? '所有' : m + '月'} 申請`, 'off'); }
 function updateActive(idx) { const btns = document.querySelectorAll('.tab-bar button'); btns.forEach((b, i) => b.style.color = (i===idx)? '#e74c3c' : '#7f8c8d'); }
 
-// 5. 排休 (重點修正：防連點)
-function toggleModal(s) { document.getElementById('off-form-modal').style.display = s ? 'flex' : 'none'; if(s) { selectedDates = []; updateDateUI(); } }
+// 5. 排休邏輯 (重點修正：移除閃退)
+function toggleModal(s) { document.getElementById('off-form-modal').style.display = s ? 'flex' : 'none'; if(s) { selectedDates = []; updateDateUI(); document.getElementById('offNote').value = ''; } }
 function addDateToList() { const input = document.getElementById('offDateInput'); if (!input.value) return; const parts = input.value.split('-'); const d = `${parts[1]}/${parts[2]}`; if (!selectedDates.includes(d)) { selectedDates.push(d); updateDateUI(); } input.value = ''; }
 function updateDateUI() { document.getElementById('selected-dates-container').innerHTML = selectedDates.map(d => `<span style="background:#eee; padding:5px 10px; border-radius:15px; margin:3px; display:inline-block; font-size:13px;">${d}</span>`).join(''); }
 
 async function submitMultipleOffRequests() {
     const note = document.getElementById('offNote').value;
     const btn = document.getElementById('submitOffBtn');
-    
     if (selectedDates.length === 0 || !note) return alert("請選日期並填寫原因");
     if (!confirm(`確定要申請這 ${selectedDates.length} 天排休嗎？`)) return;
 
-    // --- 鎖定按鈕 ---
-    btn.disabled = true;
-    btn.style.background = "#ccc";
-    btn.innerText = "傳送中...";
+    btn.disabled = true; btn.style.background = "#ccc"; btn.innerText = "傳送中...";
 
     try {
         for (let date of selectedDates) {
             await fetch(API_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ name: currentUser, pin: currentPin, date: date, note: note }) });
         }
         alert("✅ 申請成功！");
-        location.reload();
+        // --- 重點修正：不要 reload，直接關掉視窗並回到首頁 ---
+        btn.disabled = false; btn.style.background = "#e74c3c"; btn.innerText = "送出申請";
+        toggleModal(false);
+        showToday(); 
     } catch (e) {
-        alert("❌ 傳送失敗，請檢查網路");
-        btn.disabled = false;
-        btn.style.background = "#e74c3c";
-        btn.innerText = "送出申請";
+        alert("❌ 傳送失敗");
+        btn.disabled = false; btn.style.background = "#e74c3c"; btn.innerText = "送出申請";
     }
 }
