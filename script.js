@@ -2,6 +2,7 @@ const API_URL = "https://script.google.com/macros/s/AKfycbyBESdAi94VoMo8AAa_1FgR
 
 let scheduleData = [];
 let offRequestsData = [];
+let userRate = 0; 
 let currentUser = "";
 let currentPin = "";
 let currentTab = "today";
@@ -13,8 +14,7 @@ async function login() {
     currentPin = document.getElementById('loginPin').value;
     if (!currentUser || !currentPin) return alert("請選名字並填寫密碼");
     const btn = document.getElementById('loginBtn');
-    btn.innerText = "驗證中...";
-    btn.disabled = true;
+    btn.innerText = "驗證中..."; btn.disabled = true;
     try {
         const resp = await fetch(`${API_URL}?name=${encodeURIComponent(currentUser)}&pin=${currentPin}`);
         const res = await resp.json();
@@ -24,6 +24,7 @@ async function login() {
         } else {
             scheduleData = res.schedule || [];
             offRequestsData = res.offRequests || [];
+            userRate = res.rate || 0; 
             document.getElementById('login-screen').style.display = 'none';
             document.getElementById('main-app').style.display = 'block';
             showToday();
@@ -31,29 +32,50 @@ async function login() {
     } catch (e) { alert("連線失敗！"); btn.innerText = "進入系統"; btn.disabled = false; }
 }
 
-// 2. 產生日曆連結
-function getCalendarLink(dateStr, timeSlot) {
-    const year = new Date().getFullYear();
-    const [month, day] = dateStr.split('/');
-    const fullDate = `${year}${month}${day}`;
-    const title = encodeURIComponent(`小野人上班：${timeSlot}`);
-    const location = encodeURIComponent(`小野人餐盒製造所 (Dade店)`);
-    let startTime = "090000", endTime = "140000";
-    if (timeSlot.includes("晚") || timeSlot.includes("17")) { startTime = "170000"; endTime = "210000"; }
-    return `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${fullDate}T${startTime}/${fullDate}T${endTime}&location=${location}&sf=true&output=xml`;
+// 2. 薪資計算邏輯 (新增正職判斷)
+function calculateSalary(month) {
+    if (userRate >= 1000) {
+        // 判定為正職，直接顯示固定月薪
+        return { type: "正職", salary: userRate, text: `本月薪資：$${userRate}` };
+    }
+
+    let totalHours = 0;
+    const mySchedule = scheduleData.filter(i => 
+        String(i.employeeName).trim() === currentUser.trim() && 
+        i.date.startsWith(month)
+    );
+
+    mySchedule.forEach(item => {
+        const nums = item.timeSlot.match(/\d+/g);
+        if (nums && nums.length >= 2) {
+            const hours = parseInt(nums[1]) - parseInt(nums[0]);
+            if (hours > 0) totalHours += hours;
+        }
+    });
+
+    return { type: "時薪", salary: totalHours * userRate, hours: totalHours, text: `預估：${totalHours}hr / $${totalHours * userRate}` };
 }
 
-// 3. 渲染
+// 3. 畫面渲染
 function render(data, title, type = 'schedule') {
-    document.getElementById('user-welcome').innerText = title;
+    let subTitle = "";
+    const month = document.getElementById('monthFilter').value;
+    if (type === 'schedule' && month !== 'all' && currentTab === 'week') {
+        const res = calculateSalary(month);
+        subTitle = `<div style="font-size:0.8em; color:#e67e22; margin-top:5px;">${month}月 ${res.text}</div>`;
+    }
+
+    document.getElementById('user-welcome').innerHTML = `<div>${title}${subTitle}</div>`;
     const list = document.getElementById('schedule-list');
     list.innerHTML = data.length === 0 ? '<p style="text-align:center; padding:50px; color:#999;">查無紀錄</p>' : "";
+    
     data.forEach(item => {
         const d = type === 'off' ? item["申請日期"] : item.date;
         const n = type === 'off' ? item["員工姓名"] : item.employeeName;
         const s = type === 'off' ? item["申請時段"] : item.timeSlot;
         const note = type === 'off' ? (item["備註"] || "") : "";
         if (n === "宋菁" || n === "小金") return;
+
         const card = document.createElement('div');
         const isOff = type === 'off' || (s && s.includes('排休'));
         card.style = `border-left: 8px solid ${isOff?'#e74c3c':'#27ae60'}; background: white; margin: 12px 0; padding: 15px; border-radius: 12px; box-shadow: 0 3px 6px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center;`;
@@ -63,57 +85,35 @@ function render(data, title, type = 'schedule') {
     });
 }
 
-// 4. 切換頁面
+// 4. 其餘功能 (showToday, showThisWeek, showMyOff, toggleModal 等維持 4.6 完整版)
 function showToday() { currentTab = "today"; updateActive(0); document.getElementById('filter-bar').style.display = 'none'; const now = new Date(); const today = (now.getMonth() + 1).toString().padStart(2, '0') + "/" + now.getDate().toString().padStart(2, '0'); render(scheduleData.filter(i => i.date === today), `今日班表 (${today})`); }
 function showThisWeek(m = "all") { currentTab = "week"; updateActive(1); document.getElementById('filter-bar').style.display = 'flex'; let filtered = (m === "all") ? scheduleData : scheduleData.filter(i => i.date && i.date.startsWith(m)); render(filtered, m === "all" ? "全店班表總覽" : `${m}月 全店班表`); }
 function applyMonthFilter() { const month = document.getElementById('monthFilter').value; if (currentTab === "week") showThisWeek(month); else if (currentTab === "off") showMyOff(month); }
 function showMyOff(m = "all") { currentTab = "off"; updateActive(2); document.getElementById('filter-bar').style.display = 'flex'; let myData = offRequestsData.filter(i => String(i["員工姓名"]).trim() === String(currentUser).trim()); if (m !== "all") myData = myData.filter(i => i["申請日期"] && i["申請日期"].startsWith(m)); render(myData, `${currentUser} 的 ${m === 'all' ? '所有' : m + '月'} 申請`, 'off'); }
 function updateActive(idx) { const btns = document.querySelectorAll('.tab-bar button'); btns.forEach((b, i) => b.style.color = (i===idx)? '#e74c3c' : '#7f8c8d'); }
-
-// 5. 排休邏輯 (核心更新：加入碰撞偵測)
+function getCalendarLink(dateStr, timeSlot) { const year = new Date().getFullYear(); const [month, day] = dateStr.split('/'); const fullDate = `${year}${month}${day}`; const title = encodeURIComponent(`小野人上班：${timeSlot}`); const location = encodeURIComponent(`小野人餐盒製造所 (Dade店)`); let startTime = "090000", endTime = "140000"; if (timeSlot.includes("晚") || timeSlot.includes("17")) { startTime = "170000"; endTime = "210000"; } return `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${fullDate}T${startTime}/${fullDate}T${endTime}&location=${location}&sf=true&output=xml`; }
 function toggleModal(s) { document.getElementById('off-form-modal').style.display = s ? 'flex' : 'none'; if(s) { selectedDates = []; updateDateUI(); document.getElementById('offNote').value = ''; } }
 function addDateToList() { const input = document.getElementById('offDateInput'); if (!input.value) return; const parts = input.value.split('-'); const d = `${parts[1]}/${parts[2]}`; if (!selectedDates.includes(d)) { selectedDates.push(d); updateDateUI(); } input.value = ''; }
 function updateDateUI() { document.getElementById('selected-dates-container').innerHTML = selectedDates.map(d => `<span style="background:#eee; padding:5px 10px; border-radius:15px; margin:3px; display:inline-block; font-size:13px;">${d}</span>`).join(''); }
-
 async function submitMultipleOffRequests() {
     const note = document.getElementById('offNote').value;
     const btn = document.getElementById('submitOffBtn');
     if (selectedDates.length === 0 || !note) return alert("請選日期並填寫原因");
-
-    // --- 【新增】同事排假碰撞偵測邏輯 ---
     let warningMsg = "";
     selectedDates.forEach(date => {
-        // 在 offRequestsData 尋找是否有「別人」也在同一天請假
-        const others = offRequestsData.filter(item => 
-            item["申請日期"] === date && 
-            item["員工姓名"].trim() !== currentUser.trim()
-        );
-        if (others.length > 0) {
-            const names = others.map(i => i["員工姓名"]).join('、');
-            warningMsg += `⚠️ ${date} 已經有同事 (${names}) 排休了\n`;
-        }
+        const others = offRequestsData.filter(item => item["申請日期"] === date && item["員工姓名"].trim() !== currentUser.trim());
+        if (others.length > 0) { const names = others.map(i => i["員工姓名"]).join('、'); warningMsg += `⚠️ ${date} 已經有同事 (${names}) 排休了\n`; }
     });
-
     let confirmMsg = `確定要申請這 ${selectedDates.length} 天排休嗎？`;
-    if (warningMsg) {
-        confirmMsg = `${warningMsg}\n店裡可能人手不足，確定還要送出申請嗎？`;
-    }
-
+    if (warningMsg) confirmMsg = `${warningMsg}\n店裡可能人手不足，確定還要送出申請嗎？`;
     if (!confirm(confirmMsg)) return;
-
-    // 鎖定按鈕
     btn.disabled = true; btn.style.background = "#ccc"; btn.innerText = "傳送中...";
-
     try {
         for (let date of selectedDates) {
             await fetch(API_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ name: currentUser, pin: currentPin, date: date, note: note }) });
         }
         alert("✅ 申請成功！");
         btn.disabled = false; btn.style.background = "#e74c3c"; btn.innerText = "送出申請";
-        toggleModal(false);
-        showToday(); 
-    } catch (e) {
-        alert("❌ 傳送失敗");
-        btn.disabled = false; btn.style.background = "#e74c3c"; btn.innerText = "送出申請";
-    }
+        toggleModal(false); showToday(); 
+    } catch (e) { alert("❌ 傳送失敗"); btn.disabled = false; btn.style.background = "#e74c3c"; btn.innerText = "送出申請"; }
 }
