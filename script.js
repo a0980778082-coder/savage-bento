@@ -39,7 +39,7 @@ function calculateSalary(month) {
     let bonus = window.currentBonus || 0;
     if (userRate >= 1000) {
         let total = userRate + bonus;
-        return { text: `本越薪資預估：$${userRate} (底) + $${bonus} (獎) = $${total}` };
+        return { text: `本月薪資預估：$${userRate} (底) + $${bonus} (獎) = $${total}` };
     }
 
     let hrs = 0;
@@ -51,7 +51,7 @@ function calculateSalary(month) {
     
     let base = hrs * userRate;
     let total = base + bonus;
-    return { text: `本越薪資預估：$${base} (時) + $${bonus} (獎) = $${total}` };
+    return { text: `本月薪資預估：$${base} (時) + $${bonus} (獎) = $${total}` };
 }
 
 // 3. 下載 PDF 功能
