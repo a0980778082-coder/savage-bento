@@ -40,7 +40,7 @@ function calculateSalary(month) {
     // 正職判斷 (底薪 >= 1000)
     if (userRate >= 1000) {
         let total = Number(userRate) + bonus;
-        return { text: `本越薪資預估：$${total.toLocaleString()} (含獎金)` };
+        return { text: `本月薪資預估：$${total.toLocaleString()} (含獎金)` };
     }
     
     // 時薪夥伴計算
@@ -61,7 +61,7 @@ function calculateSalary(month) {
     });
     
     let total = (hrs * userRate) + bonus;
-    return { text: `本越總時數：${hrs}hr / 薪資預估：$${total.toLocaleString()}` };
+    return { text: `本月總時數：${hrs}hr / 薪資預估：$${total.toLocaleString()}` };
 }
 
 // 3. 下載 PDF 薪資單
