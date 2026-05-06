@@ -33,7 +33,7 @@ async function login() {
     } catch (e) { alert("連線失敗！"); btn.innerText = "進入系統"; btn.disabled = false; }
 }
 
-// 2. 薪資計算邏輯 (優先採用後台手動微調時數)
+// 2. 薪資計算邏輯 (文字修正：本月)
 function calculateSalary(month) {
     let bonus = Number(window.currentBonus) || 0;
     
@@ -48,7 +48,6 @@ function calculateSalary(month) {
     const myS = scheduleData.filter(i => String(i.employeeName).trim() === currentUser.trim() && i.date.startsWith(month));
     
     myS.forEach(i => {
-        // 如果後台 G 欄有填寫「實撥時數」，優先使用該數值
         if (i.actualHrs && !isNaN(i.actualHrs) && i.actualHrs !== "") {
             hrs += Number(i.actualHrs);
         } else {
@@ -92,13 +91,12 @@ function render(data, title, type = 'schedule') {
     let sub = "";
     const m = document.getElementById('monthFilter').value;
     
-    // 當在「全店總表」且有選月份時，顯示薪資預估與下載按鈕
     if (type === 'schedule' && m !== 'all' && currentTab === 'week') {
         const res = calculateSalary(m);
         sub = `
             <div style="font-size:0.85em; color:#e67e22; margin-top:5px; font-weight:bold;">
                 ${res.text}
-                <button onclick="downloadPDF('${m}')" style="margin-left:8px; padding:3px 10px; background:#34495e; color:white; border:none; border-radius:5px; font-size:11px; cursor:pointer;">下載PDF</button>
+                <button onclick="downloadPDF('${m}')" style="margin-left:8px; padding:3px 8px; background:#34495e; color:white; border:none; border-radius:5px; font-size:11px; cursor:pointer;">下載PDF</button>
             </div>`;
     }
 
@@ -124,13 +122,12 @@ function render(data, title, type = 'schedule') {
     });
 }
 
-// 5. 導覽功能與工具函式
-function showToday() { currentTab = "today"; updateActive(0); document.getElementById('filter-bar').style.display = 'none'; const now = new Date(); const t = (now.getMonth() + 1).toString().padStart(2, '0') + "/" + now.getDate().toString().padStart(2, '0'); render(scheduleData.filter(i => i.date === t), `今日班表 (${t})`); }
+// 其餘功能維持不變 (showToday, showThisWeek, applyMonthFilter, showMyOff, updateActive, getCalendarLink, toggleModal, addDateToList, submitMultipleOffRequests)
+function showToday() { currentTab = "today"; updateActive(0); document.getElementById('filter-bar').style.display = 'none'; const now = new Date(); const today = (now.getMonth() + 1).toString().padStart(2, '0') + "/" + now.getDate().toString().padStart(2, '0'); render(scheduleData.filter(i => i.date === today), `今日班表 (${today})`); }
 function showThisWeek(m = "all") { currentTab = "week"; updateActive(1); document.getElementById('filter-bar').style.display = 'flex'; let f = (m === "all") ? scheduleData : scheduleData.filter(i => i.date && i.date.startsWith(m)); render(f, m === "all" ? "全店總表" : `${m}月 全店總表`); }
 function applyMonthFilter() { const m = document.getElementById('monthFilter').value; if (currentTab === "week") showThisWeek(m); else if (currentTab === "off") showMyOff(m); }
 function showMyOff(m = "all") { currentTab = "off"; updateActive(2); document.getElementById('filter-bar').style.display = 'flex'; let my = offRequestsData.filter(i => String(i["員工姓名"]).trim() === String(currentUser).trim()); if (m !== "all") my = my.filter(i => i["申請日期"] && i["申請日期"].startsWith(m)); render(my, `${currentUser} 的 ${m === 'all' ? '所有' : m + '月'} 申請`, 'off'); }
 function updateActive(idx) { const btns = document.querySelectorAll('.tab-bar button'); btns.forEach((b, i) => b.style.color = (i===idx)? '#e74c3c' : '#7f8c8d'); }
-
 function getCalendarLink(dateStr, timeSlot) {
     const year = new Date().getFullYear();
     const [month, day] = dateStr.split('/');
@@ -140,8 +137,6 @@ function getCalendarLink(dateStr, timeSlot) {
     if (timeSlot.includes("晚") || timeSlot.includes("17")) { startTime = "170000"; endTime = "210000"; }
     return `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${fullDate}T${startTime}/${fullDate}T${endTime}&location=${encodeURIComponent('小野人Dade店')}&sf=true&output=xml`;
 }
-
-// 6. 排休申請 (含碰撞偵測)
 function toggleModal(s) { document.getElementById('off-form-modal').style.display = s ? 'flex' : 'none'; if(s) { selectedDates = []; document.getElementById('selected-dates-container').innerHTML = ''; document.getElementById('offNote').value = ''; } }
 function addDateToList() { const input = document.getElementById('offDateInput'); if (!input.value) return; const p = input.value.split('-'); const d = `${p[1]}/${p[2]}`; if (!selectedDates.includes(d)) { selectedDates.push(d); document.getElementById('selected-dates-container').innerHTML += `<span style="background:#eee; padding:5px; margin:3px; border-radius:5px;">${d}</span>`; } input.value = ''; }
 async function submitMultipleOffRequests() {
