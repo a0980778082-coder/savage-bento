@@ -8,7 +8,10 @@ let currentPin = "";
 let currentTab = "today";
 let selectedDates = [];
 
-// 1. 登入系統
+// 新增這兩個變數來存大腦算好的正確時數與底薪
+let serverCalculatedHrs = 0;
+let serverCalculatedBasePay = 0;
+
 async function login() {
     currentUser = document.getElementById('loginName').value;
     currentPin = document.getElementById('loginPin').value;
@@ -25,8 +28,9 @@ async function login() {
             scheduleData = res.schedule || [];
             offRequestsData = res.offRequests || [];
             userRate = res.rate || 0; 
-            // 登入時先預設一個獎金值
             window.currentBonus = res.monthlyBonus || 0;
+            serverCalculatedHrs = res.calculatedHrs || 0;
+            serverCalculatedBasePay = res.calculatedBasePay || 0;
             document.getElementById('login-screen').style.display = 'none';
             document.getElementById('main-app').style.display = 'block';
             showToday();
@@ -34,7 +38,7 @@ async function login() {
     } catch (e) { alert("連線失敗！"); btn.innerText = "進入系統"; btn.disabled = false; }
 }
 
-// 2. 薪資計算邏輯 (修正文字：本月)
+// 修正：計算邏輯優先使用大腦傳回來的數據
 function calculateSalary(month) {
     let bonus = Number(window.currentBonus) || 0;
     
@@ -44,27 +48,11 @@ function calculateSalary(month) {
         return { text: `本月薪資預估：$${total.toLocaleString()} (含獎金/扣款)` };
     }
     
-    // 時薪夥伴計算
-    let hrs = 0;
-    const myS = scheduleData.filter(i => String(i.employeeName).trim() === currentUser.trim() && i.date.startsWith(month));
-    
-    myS.forEach(i => {
-        if (i.actualHrs && !isNaN(i.actualHrs) && i.actualHrs !== "") {
-            hrs += Number(i.actualHrs);
-        } else {
-            const n = i.timeSlot.match(/\d+/g);
-            if (n && n.length >= 2) { 
-                let h = parseInt(n[1]) - parseInt(n[0]); 
-                if (h > 0) hrs += h; 
-            }
-        }
-    });
-    
-    let total = (hrs * userRate) + bonus;
-    return { text: `本月總時數：${hrs}hr / 薪資預估：$${total.toLocaleString()}` };
+    // 工讀：直接使用伺服器算好的時數與底薪
+    let total = serverCalculatedBasePay + bonus;
+    return { text: `本月總時數：${serverCalculatedHrs}hr / 薪資預估：$${total.toLocaleString()}` };
 }
 
-// 3. 切換月份篩選 (關鍵：每次切換都去大腦拿該月獎金/扣款)
 async function applyMonthFilter() {
     const m = document.getElementById('monthFilter').value;
     const welcomeArea = document.getElementById('user-welcome');
@@ -75,57 +63,50 @@ async function applyMonthFilter() {
             const resp = await fetch(`${API_URL}?name=${encodeURIComponent(currentUser)}&pin=${currentPin}&month=${m}`);
             const res = await resp.json();
             window.currentBonus = res.monthlyBonus || 0;
-        } catch (e) { console.log("無法獲取月份獎金"); }
+            // 同步大腦算好的時數
+            serverCalculatedHrs = res.calculatedHrs || 0;
+            serverCalculatedBasePay = res.calculatedBasePay || 0;
+        } catch (e) { console.log("無法獲取月份資料"); }
     }
 
     if (currentTab === "week") showThisWeek(m);
     else if (currentTab === "off") showMyOff(m);
 }
 
-// 4. 下載 PDF 薪資單
-async function downloadPDF(month) {
+// ---------------------------------------------------------
+// 其餘渲染與功能 (render, downloadPDF, showToday 等) 維持不變
+// ---------------------------------------------------------
+
+function downloadPDF(month) {
     const btn = event.target;
     const originalText = btn.innerText;
     btn.innerText = "產生中..."; btn.disabled = true;
-
-    try {
-        const url = `${API_URL}?mode=downloadPDF&name=${encodeURIComponent(currentUser)}&pin=${currentPin}&month=${month}`;
-        const resp = await fetch(url);
-        const base64 = await resp.text();
-        
+    const url = `${API_URL}?mode=downloadPDF&name=${encodeURIComponent(currentUser)}&pin=${currentPin}&month=${month}`;
+    fetch(url).then(r => r.text()).then(base64 => {
         const link = document.createElement('a');
         link.href = `data:application/pdf;base64,${base64}`;
         link.download = `${currentUser}_${month}月薪資單.pdf`;
         link.click();
-        
         btn.innerText = originalText; btn.disabled = false;
-    } catch (e) {
-        alert("下載失敗");
-        btn.innerText = originalText; btn.disabled = false;
-    }
+    }).catch(e => { alert("下載失敗"); btn.innerText = originalText; btn.disabled = false; });
 }
 
-// 5. 畫面渲染
 function render(data, title, type = 'schedule') {
     let sub = "";
     const m = document.getElementById('monthFilter').value;
-    
     if (type === 'schedule' && m !== 'all' && currentTab === 'week') {
         const res = calculateSalary(m);
         sub = `<div style="font-size:0.85em; color:#e67e22; margin-top:5px; font-weight:bold;">${res.text} <button onclick="downloadPDF('${m}')" style="margin-left:8px; padding:3px 8px; background:#34495e; color:white; border:none; border-radius:5px; font-size:11px; cursor:pointer;">下載PDF</button></div>`;
     }
-
     document.getElementById('user-welcome').innerHTML = `<div>${title}${sub}</div>`;
     const list = document.getElementById('schedule-list');
     list.innerHTML = data.length === 0 ? '<p style="text-align:center; padding:50px; color:#999;">查無紀錄</p>' : "";
-    
     data.forEach(item => {
         const d = type === 'off' ? item["申請日期"] : item.date;
         const n = type === 'off' ? item["員工姓名"] : item.employeeName;
         const s = type === 'off' ? item["申請時段"] : item.timeSlot;
         const note = type === 'off' ? (item["備註"] || "") : "";
         if (n === "宋菁" || n === "小金") return;
-
         const card = document.createElement('div');
         const isOff = type === 'off' || (s && s.includes('排休'));
         card.style = `border-left: 8px solid ${isOff?'#e74c3c':'#27ae60'}; background: white; margin: 12px 0; padding: 15px; border-radius: 12px; box-shadow: 0 3px 6px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center;`;
@@ -135,12 +116,10 @@ function render(data, title, type = 'schedule') {
     });
 }
 
-// 6. 導覽與工具函式
 function showToday() { currentTab = "today"; updateActive(0); document.getElementById('filter-bar').style.display = 'none'; const now = new Date(); const t = (now.getMonth() + 1).toString().padStart(2, '0') + "/" + now.getDate().toString().padStart(2, '0'); render(scheduleData.filter(i => i.date === t), `今日班表 (${t})`); }
 function showThisWeek(m = "all") { currentTab = "week"; updateActive(1); document.getElementById('filter-bar').style.display = 'flex'; let f = (m === "all") ? scheduleData : scheduleData.filter(i => i.date && i.date.startsWith(m)); render(f, m === "all" ? "全店總表" : `${m}月 全店總表`); }
 function showMyOff(m = "all") { currentTab = "off"; updateActive(2); document.getElementById('filter-bar').style.display = 'flex'; let my = offRequestsData.filter(i => String(i["員工姓名"]).trim() === String(currentUser).trim()); if (m !== "all") my = my.filter(i => i["申請日期"] && i["申請日期"].startsWith(m)); render(my, `${currentUser} 的 ${m === 'all' ? '所有' : m + '月'} 申請`, 'off'); }
 function updateActive(idx) { const btns = document.querySelectorAll('.tab-bar button'); btns.forEach((b, i) => b.style.color = (i===idx)? '#e74c3c' : '#7f8c8d'); }
-
 function getCalendarLink(dateStr, timeSlot) {
     const year = new Date().getFullYear();
     const [month, day] = dateStr.split('/');
@@ -150,8 +129,6 @@ function getCalendarLink(dateStr, timeSlot) {
     if (timeSlot.includes("晚") || timeSlot.includes("17")) { startTime = "170000"; endTime = "210000"; }
     return `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${fullDate}T${startTime}/${fullDate}T${endTime}&location=${encodeURIComponent('小野人Dade店')}&sf=true&output=xml`;
 }
-
-// 7. 排休申請
 function toggleModal(s) { document.getElementById('off-form-modal').style.display = s ? 'flex' : 'none'; if(s) { selectedDates = []; document.getElementById('selected-dates-container').innerHTML = ''; document.getElementById('offNote').value = ''; } }
 function addDateToList() { const input = document.getElementById('offDateInput'); if (!input.value) return; const p = input.value.split('-'); const d = `${p[1]}/${p[2]}`; if (!selectedDates.includes(d)) { selectedDates.push(d); document.getElementById('selected-dates-container').innerHTML += `<span style="background:#eee; padding:5px; margin:3px; border-radius:5px;">${d}</span>`; } input.value = ''; }
 async function submitMultipleOffRequests() {
