@@ -60,17 +60,33 @@ async function applyMonthFilter() {
     if (currentTab === "week") showThisWeek(m);
 }
 
-function downloadPDF(month) {
+// 修正：點擊後直接在手機瀏覽器開啟 PDF 預覽
+async function downloadPDF(month) {
     const btn = event.target;
-    btn.innerText = "產生中..."; btn.disabled = true;
-    const url = `${API_URL}?mode=downloadPDF&name=${encodeURIComponent(currentUser)}&pin=${currentPin}&month=${month}`;
-    fetch(url).then(r => r.text()).then(base64 => {
-        const link = document.createElement('a');
-        link.href = `data:application/pdf;base64,${base64}`;
-        link.download = `${currentUser}_${month}月薪資單.pdf`;
-        link.click();
-        btn.innerText = "下載PDF"; btn.disabled = false;
-    }).catch(e => { alert("下載失敗"); btn.innerText = "下載PDF"; btn.disabled = false; });
+    btn.innerText = "讀取中..."; btn.disabled = true;
+    try {
+        const url = `${API_URL}?mode=downloadPDF&name=${encodeURIComponent(currentUser)}&pin=${currentPin}&month=${month}`;
+        const resp = await fetch(url);
+        const base64 = await resp.text();
+        
+        // 將 Base64 轉換為 Blob 物件
+        const byteCharacters = atob(base64);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const file = new Blob([byteArray], { type: 'application/pdf' });
+        
+        // 產生一個暫時的網址並直接開啟
+        const fileURL = URL.createObjectURL(file);
+        window.open(fileURL, '_blank');
+        
+        btn.innerText = "查看薪資單"; btn.disabled = false;
+    } catch (e) { 
+        alert("預覽失敗，請確認網路連線"); 
+        btn.innerText = "查看薪資單"; btn.disabled = false; 
+    }
 }
 
 function render(data, title, type = 'schedule') {
@@ -78,7 +94,7 @@ function render(data, title, type = 'schedule') {
     const m = document.getElementById('monthFilter').value;
     if (type === 'schedule' && m !== 'all' && currentTab === 'week') {
         const res = calculateSalary(m);
-        sub = `<div style="font-size:0.85em; color:#e67e22; margin-top:5px; font-weight:bold;">${res.text} <button onclick="downloadPDF('${m}')" style="margin-left:8px; padding:3px 8px; background:#34495e; color:white; border:none; border-radius:5px; font-size:11px; cursor:pointer;">下載PDF</button></div>`;
+        sub = `<div style="font-size:0.85em; color:#e67e22; margin-top:5px; font-weight:bold;">${res.text} <button onclick="downloadPDF('${m}')" style="margin-left:8px; padding:3px 10px; background:#34495e; color:white; border:none; border-radius:5px; font-size:11px; cursor:pointer;">查看薪資單</button></div>`;
     }
     document.getElementById('user-welcome').innerHTML = `<div>${title}${sub}</div>`;
     const list = document.getElementById('schedule-list');
@@ -88,7 +104,6 @@ function render(data, title, type = 'schedule') {
         if (n === "宋菁" || n === "小金") return;
         const card = document.createElement('div');
         const isOff = s && s.includes('排休');
-        card.className = 'card';
         card.style = `border-left: 8px solid ${isOff?'#e74c3c':'#27ae60'}; background: white; margin: 12px 0; padding: 15px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 3px 6px rgba(0,0,0,0.05);`;
         card.innerHTML = `<div><div style="font-weight:bold;">${d}</div><div style="color:${isOff?'#e74c3c':'#7f8c8d'}; margin-top:5px;">${s}</div></div><div style="font-weight:bold;">${n}</div>`;
         list.appendChild(card);
