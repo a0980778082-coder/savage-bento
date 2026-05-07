@@ -10,6 +10,7 @@ let selectedDates = [];
 let serverCalculatedHrs = 0;
 let serverCalculatedBasePay = 0;
 
+// 1. 登入系統
 async function login() {
     currentUser = document.getElementById('loginName').value;
     currentPin = document.getElementById('loginPin').value;
@@ -35,6 +36,7 @@ async function login() {
     } catch (e) { alert("連線失敗！"); btn.innerText = "進入系統"; btn.disabled = false; }
 }
 
+// 2. 薪資預估邏輯
 function calculateSalary(month) {
     let bonus = Number(window.currentBonus) || 0;
     if (userRate >= 1000) {
@@ -45,10 +47,11 @@ function calculateSalary(month) {
     return { text: `本月總時數：${serverCalculatedHrs}hr / 薪資預估：$${total.toLocaleString()}` };
 }
 
+// 3. 切換月份篩選
 async function applyMonthFilter() {
     const m = document.getElementById('monthFilter').value;
     if (m !== 'all') {
-        document.getElementById('user-welcome').innerHTML = "<div>更新薪資資料中...</div>";
+        document.getElementById('user-welcome').innerHTML = "<div>更新中...</div>";
         try {
             const resp = await fetch(`${API_URL}?name=${encodeURIComponent(currentUser)}&pin=${currentPin}&month=${m}`);
             const res = await resp.json();
@@ -60,7 +63,7 @@ async function applyMonthFilter() {
     if (currentTab === "week") showThisWeek(m);
 }
 
-// 修正：點擊後直接在手機瀏覽器開啟 PDF 預覽
+// 4. 下載/查看薪資單 (修正：解決手機攔截問題)
 async function downloadPDF(month) {
     const btn = event.target;
     btn.innerText = "讀取中..."; btn.disabled = true;
@@ -69,7 +72,6 @@ async function downloadPDF(month) {
         const resp = await fetch(url);
         const base64 = await resp.text();
         
-        // 將 Base64 轉換為 Blob 物件
         const byteCharacters = atob(base64);
         const byteNumbers = new Array(byteCharacters.length);
         for (let i = 0; i < byteCharacters.length; i++) {
@@ -77,24 +79,25 @@ async function downloadPDF(month) {
         }
         const byteArray = new Uint8Array(byteNumbers);
         const file = new Blob([byteArray], { type: 'application/pdf' });
-        
-        // 產生一個暫時的網址並直接開啟
         const fileURL = URL.createObjectURL(file);
-        window.open(fileURL, '_blank');
         
-        btn.innerText = "查看薪資單"; btn.disabled = false;
+        // 直接在當前分頁開啟，避免視窗攔截
+        window.location.href = fileURL;
+        
+        setTimeout(() => { btn.innerText = "查看薪資單"; btn.disabled = false; }, 2000);
     } catch (e) { 
-        alert("預覽失敗，請確認網路連線"); 
+        alert("讀取失敗，請重新嘗試"); 
         btn.innerText = "查看薪資單"; btn.disabled = false; 
     }
 }
 
+// 5. 畫面渲染
 function render(data, title, type = 'schedule') {
     let sub = "";
     const m = document.getElementById('monthFilter').value;
     if (type === 'schedule' && m !== 'all' && currentTab === 'week') {
         const res = calculateSalary(m);
-        sub = `<div style="font-size:0.85em; color:#e67e22; margin-top:5px; font-weight:bold;">${res.text} <button onclick="downloadPDF('${m}')" style="margin-left:8px; padding:3px 10px; background:#34495e; color:white; border:none; border-radius:5px; font-size:11px; cursor:pointer;">查看薪資單</button></div>`;
+        sub = `<div style="font-size:0.85em; color:#e67e22; margin-top:5px; font-weight:bold;">${res.text} <button onclick="downloadPDF('${m}')" style="margin-left:8px; padding:3px 8px; background:#34495e; color:white; border:none; border-radius:5px; font-size:11px; cursor:pointer;">查看薪資單</button></div>`;
     }
     document.getElementById('user-welcome').innerHTML = `<div>${title}${sub}</div>`;
     const list = document.getElementById('schedule-list');
@@ -110,6 +113,7 @@ function render(data, title, type = 'schedule') {
     });
 }
 
+// 6. 標籤列切換
 function showToday() { currentTab = "today"; updateActive(0); document.getElementById('filter-bar').style.display = 'none'; const now = new Date(); const t = (now.getMonth() + 1).toString().padStart(2, '0') + "/" + now.getDate().toString().padStart(2, '0'); render(scheduleData.filter(i => i.date === t), `今日班表 (${t})`); }
 function showThisWeek(m = "all") { currentTab = "week"; updateActive(1); document.getElementById('filter-bar').style.display = 'flex'; let f = (m === "all") ? scheduleData : scheduleData.filter(i => i.date && i.date.startsWith(m)); render(f, m === "all" ? "全店總表" : `${m}月 全店總表`); }
 function updateActive(idx) { const btns = document.querySelectorAll('.tab-bar button'); btns.forEach((b, i) => b.style.color = (i===idx)? '#e74c3c' : '#7f8c8d'); }
