@@ -1,10 +1,12 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbyBESdAi94VoMo8AAa_1FgRfWA-qyL-SUxsqUuQhSmdqof81gyRSAKEiTRRPkemc6j5/exec"; 
 
 let scheduleData = [];
+let offRequestsData = [];
 let userRate = 0; 
 let currentUser = "";
 let currentPin = "";
 let currentTab = "today";
+let selectedDates = [];
 let serverCalculatedHrs = 0;
 let serverCalculatedBasePay = 0;
 
@@ -22,6 +24,7 @@ async function login() {
             btn.innerText = "進入系統"; btn.disabled = false;
         } else {
             scheduleData = res.schedule || [];
+            offRequestsData = res.offRequests || [];
             userRate = res.rate || 0; 
             window.currentBonus = res.monthlyBonus || 0;
             serverCalculatedHrs = res.calculatedHrs || 0;
@@ -37,7 +40,7 @@ function calculateSalary(month) {
     let bonus = Number(window.currentBonus) || 0;
     if (userRate >= 1000) {
         let total = Number(userRate) + bonus;
-        return { text: `本月薪資預估：$${total.toLocaleString()} (含獎金/扣款)` };
+        return { text: `本月薪資預估：$${total.toLocaleString()} (含補貼/獎金/扣款)` };
     }
     let total = serverCalculatedBasePay + bonus;
     return { text: `本月總時數：${serverCalculatedHrs}hr / 薪資預估：$${total.toLocaleString()}` };
@@ -46,19 +49,20 @@ function calculateSalary(month) {
 async function applyMonthFilter() {
     const m = document.getElementById('monthFilter').value;
     if (m !== 'all') {
-        document.getElementById('user-welcome').innerHTML = "<div>更新薪資資料中...</div>";
+        document.getElementById('user-welcome').innerHTML = "<div>更新資料中...</div>";
         try {
             const resp = await fetch(`${API_URL}?name=${encodeURIComponent(currentUser)}&pin=${currentPin}&month=${m}`);
             const res = await resp.json();
             window.currentBonus = res.monthlyBonus || 0;
             serverCalculatedHrs = res.calculatedHrs || 0;
             serverCalculatedBasePay = res.calculatedBasePay || 0;
-        } catch (e) { console.log("無法獲取月份資料"); }
+            scheduleData = res.schedule || [];
+        } catch (e) { console.log("資料同步失敗"); }
     }
     if (currentTab === "week") showThisWeek(m);
+    else if (currentTab === "off") showMyOff(m);
 }
 
-// 關鍵修正：點擊後直接跳轉到網頁版薪資單
 function downloadPDF(month) {
     const url = `${API_URL}?mode=downloadPDF&name=${encodeURIComponent(currentUser)}&pin=${currentPin}&month=${month}`;
     window.location.href = url;
@@ -67,24 +71,34 @@ function downloadPDF(month) {
 function render(data, title, type = 'schedule') {
     let sub = "";
     const m = document.getElementById('monthFilter').value;
+    
+    // 如果是「全店總表」且有選月份，才顯示薪資與按鈕
     if (type === 'schedule' && m !== 'all' && currentTab === 'week') {
         const res = calculateSalary(m);
         sub = `<div style="font-size:0.85em; color:#e67e22; margin-top:5px; font-weight:bold;">${res.text} <button onclick="downloadPDF('${m}')" style="margin-left:8px; padding:3px 10px; background:#34495e; color:white; border:none; border-radius:5px; font-size:11px; cursor:pointer;">查看薪資明細</button></div>`;
     }
+
     document.getElementById('user-welcome').innerHTML = `<div>${title}${sub}</div>`;
     const list = document.getElementById('schedule-list');
     list.innerHTML = data.length === 0 ? '<p style="text-align:center; padding:50px; color:#999;">查無紀錄</p>' : "";
+    
     data.forEach(item => {
-        const d = item.date; const n = item.employeeName; const s = item.timeSlot;
+        const d = type === 'off' ? item["申請日期"] : item.date;
+        const n = type === 'off' ? item["員工姓名"] : item.employeeName;
+        const s = type === 'off' ? item["申請時段"] : item.timeSlot;
+        const note = type === 'off' ? (item["備註"] || "") : "";
         if (n === "宋菁" || n === "小金") return;
+
         const card = document.createElement('div');
-        const isOff = s && s.includes('排休');
+        const isOff = type === 'off' || (s && s.includes('排休'));
         card.style = `border-left: 8px solid ${isOff?'#e74c3c':'#27ae60'}; background: white; margin: 12px 0; padding: 15px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 3px 6px rgba(0,0,0,0.05);`;
-        card.innerHTML = `<div><div style="font-weight:bold;">${d}</div><div style="color:${isOff?'#e74c3c':'#7f8c8d'}; margin-top:5px;">${s}</div></div><div style="font-weight:bold;">${n}</div>`;
+        card.innerHTML = `<div style="flex:1;"><div style="font-weight:bold;">${d}</div><div style="color:${isOff?'#e74c3c':'#7f8c8d'}; margin-top:5px; font-weight:bold;">${s}</div>${note ? `<div style="font-size:0.85em; color:#999; margin-top:3px;">原因：${note}</div>` : ""}</div><div style="font-weight:bold; color:#34495e;">${n}</div>`;
         list.appendChild(card);
     });
 }
 
+// 導覽功能修正
 function showToday() { currentTab = "today"; updateActive(0); document.getElementById('filter-bar').style.display = 'none'; const now = new Date(); const t = (now.getMonth() + 1).toString().padStart(2, '0') + "/" + now.getDate().toString().padStart(2, '0'); render(scheduleData.filter(i => i.date === t), `今日班表 (${t})`); }
 function showThisWeek(m = "all") { currentTab = "week"; updateActive(1); document.getElementById('filter-bar').style.display = 'flex'; let f = (m === "all") ? scheduleData : scheduleData.filter(i => i.date && i.date.startsWith(m)); render(f, m === "all" ? "全店總表" : `${m}月 全店總表`); }
+function showMyOff(m = "all") { currentTab = "off"; updateActive(2); document.getElementById('filter-bar').style.display = 'flex'; let my = offRequestsData.filter(i => String(i["員工姓名"]).trim() === String(currentUser).trim()); if (m !== "all") my = my.filter(i => i["申請日期"] && i["申請日期"].startsWith(m)); render(my, `${currentUser} 的 ${m === 'all' ? '所有' : m + '月'} 申請`, 'off'); }
 function updateActive(idx) { const btns = document.querySelectorAll('.tab-bar button'); btns.forEach((b, i) => b.style.color = (i===idx)? '#e74c3c' : '#7f8c8d'); }
