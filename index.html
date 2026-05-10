@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>小野人排班系統 4.4</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <title>小野人夥伴系統 7.2</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body style="margin: 0; background-color: #f4f7f6; font-family: -apple-system, sans-serif;">
+
     <div id="login-screen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #34495e; display: flex; justify-content: center; align-items: center; z-index: 1000;">
         <div style="background: white; padding: 30px; border-radius: 20px; width: 85%; max-width: 350px; text-align: center;">
             <h2 style="color: #2c3e50; margin: 0;">小野人餐盒</h2>
@@ -43,31 +43,14 @@
 
         <section id="schedule-list" style="padding: 10px 10px 100px 10px;"></section>
 
-        <div id="off-form-modal" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 200;">
-            <div style="background: white; padding: 20px; border-radius: 15px; width: 85%; max-width: 400px;">
-                <h3 style="margin: 0 0 15px 0;">申請排休</h3>
-                <label>選擇日期：</label>
-                <div style="display:flex; gap:5px; margin-bottom:10px;">
-                    <input type="date" id="offDateInput" style="flex: 1; height: 40px; border: 1px solid #ddd; border-radius: 5px;">
-                    <button onclick="addDateToList()" style="width:50px; background:#3498db; color:white; border:none; border-radius:5px;">+</button>
-                </div>
-                <div id="selected-dates-container" style="margin-bottom: 10px; min-height: 20px;"></div>
-                <label>原因備註：</label>
-                <textarea id="offNote" style="width: 100%; height: 60px; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 15px;"></textarea>
-                <div style="display: flex; gap: 10px;">
-                    <button id="cancelOffBtn" onclick="toggleModal(false)" style="flex: 1; height: 45px; background:#95a5a6; color:white; border:none; border-radius:8px;">取消</button>
-                    <button id="submitOffBtn" onclick="submitMultipleOffRequests()" style="flex: 1; height: 45px; background:#e74c3c; color:white; border:none; border-radius:8px;">送出申請</button>
-                </div>
-            </div>
-        </div>
-
         <nav class="tab-bar" style="position: fixed; bottom: 0; left: 0; width: 100%; height: 65px; background: white; border-top: 1px solid #eee; display: flex; align-items: center; z-index: 100;">
-            <button onclick="showToday()" style="flex: 1; background: none; border: none; font-weight: bold; height: 100%; font-size: 14px;">今日班表</button>
-            <button onclick="showThisWeek()" style="flex: 1; background: none; border: none; font-weight: bold; height: 100%; font-size: 14px;">全店總表</button>
-            <button onclick="showMyOff()" style="flex: 1; background: none; border: none; font-weight: bold; height: 100%; font-size: 14px;">我的排休</button>
-            <button onclick="toggleModal(true)" style="flex: 1.2; background:#e74c3c; color:white; border: none; font-weight: bold; height: 100%; font-size: 15px;">我要排休</button>
+            <button onclick="showToday()" style="flex: 1; background: none; border: none; font-weight: bold; height: 100%; font-size: 13px; color: #7f8c8d;">今日班表</button>
+            <button onclick="showThisWeek()" style="flex: 1; background: none; border: none; font-weight: bold; height: 100%; font-size: 13px; color: #7f8c8d;">全店總表</button>
+            <button onclick="showMyOff()" style="flex: 1; background: none; border: none; font-weight: bold; height: 100%; font-size: 13px; color: #7f8c8d;">我的申請</button>
+            <button onclick="showOffCalendar()" style="flex: 1.2; background:#e74c3c; color:white; border: none; font-weight: bold; height: 100%; font-size: 14px;">我要排休</button>
         </nav>
     </div>
+
     <script src="script.js"></script>
 </body>
 </html>
