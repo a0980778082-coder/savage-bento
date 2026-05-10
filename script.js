@@ -36,7 +36,6 @@ async function login() {
     } catch (e) { alert("連線失敗"); btn.innerText = "進入系統"; btn.disabled = false; }
 }
 
-// --- 核心：動態生成 30 天日曆 + 衝突檢查 ---
 function showOffCalendar() {
     currentTab = "applyOff";
     updateActive(3); 
@@ -119,11 +118,11 @@ async function submitOff() {
     } catch (e) { alert("申請失敗"); btn.innerText = "送出排休申請"; btn.disabled = false; }
 }
 
-// --- 輔助功能 ---
 function showSubsidyModal() {
     const m = `<div id="subsidy-modal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:9999;"><div style="background:white;padding:25px;border-radius:15px;width:85%;max-width:400px;"><h3 style="margin:0 0 15px 0;">⛽ 外送里程回報</h3><label>起始里程：<input type="number" id="startKm" style="width:100%;padding:10px;margin-top:5px;"></label><label>結束里程：<input type="number" id="endKm" style="width:100%;padding:10px;margin-top:5px;"></label><label>今日油價：<input type="number" step="0.1" id="oilPrice" value="29.5" style="width:100%;padding:10px;margin-top:5px;"></label><div style="display:flex;gap:10px;margin-top:20px;"><button onclick="submitSubsidy()" style="flex:1;padding:12px;background:#27ae60;color:white;border:none;border-radius:8px;font-weight:bold;">送出</button><button onclick="document.getElementById('subsidy-modal').remove()" style="flex:1;padding:12px;background:#999;color:white;border:none;border-radius:8px;">取消</button></div></div></div>`;
     document.body.insertAdjacentHTML('beforeend', m);
 }
+
 async function submitSubsidy() {
     const s = document.getElementById('startKm').value; const e = document.getElementById('endKm').value; const o = document.getElementById('oilPrice').value;
     if(!s||!e||!o) return alert("填完整喔");
@@ -132,7 +131,9 @@ async function submitSubsidy() {
         if(await r.text() === "SUCCESS") { alert("✅ 已回報"); document.getElementById('subsidy-modal').remove(); applyMonthFilter(); }
     } catch (err) { alert("失敗"); }
 }
+
 function downloadPDF(month) { window.location.href = `${API_URL}?mode=downloadPDF&name=${encodeURIComponent(currentUser)}&pin=${currentPin}&month=${month}`; }
+
 async function applyMonthFilter() {
     const m = document.getElementById('monthFilter').value;
     if (m !== 'all') {
@@ -150,6 +151,7 @@ async function applyMonthFilter() {
     if (currentTab === "week") showThisWeek(m);
     else if (currentTab === "off") showMyOff(m);
 }
+
 function render(data, title, type = 'schedule') {
     const m = document.getElementById('monthFilter').value;
     let sub = "";
@@ -160,18 +162,23 @@ function render(data, title, type = 'schedule') {
     document.getElementById('user-welcome').innerHTML = `<div>${title}${sub}</div>`;
     const list = document.getElementById('schedule-list');
     list.innerHTML = data.length === 0 ? '<p style="text-align:center;padding:50px;color:#999;">查無紀錄</p>' : "";
+    
     data.forEach(item => {
-        const d = type==='off'?item["申請日期"]:item.date;
-        const n = type==='off'?item["員工姓名"]:item.employeeName;
-        const s = type==='off'?item["申請時段"]:item.timeSlot;
-        if (n === "信雄" || n === "小金") return;
+        const d = type === 'off' ? item["申請日期"] : item.date;
+        const n = type === 'off' ? item["員工姓名"] : item.employeeName;
+        const s = type === 'off' ? item["申請時段"] : item.timeSlot;
+        
+        // 🚨 關鍵修正：只有在看「班表」時才隱藏老闆，看「申請」時不隱藏！
+        if (type === 'schedule' && (n === "信雄" || n === "小金")) return;
+        
         const card = document.createElement('div');
-        const isOff = type==='off'||(s&&s.includes('排休'));
+        const isOff = type === 'off' || (s && s.includes('排休'));
         card.style = `border-left:8px solid ${isOff?'#e74c3c':'#27ae60'};background:white;margin:12px 0;padding:15px;border-radius:12px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 3px 6px rgba(0,0,0,0.05);`;
         card.innerHTML = `<div style="flex:1;"><div style="font-weight:bold;">${d}</div><div style="color:${isOff?'#e74c3c':'#7f8c8d'};margin-top:5px;font-weight:bold;">${s}</div></div><div style="font-weight:bold;color:#34495e;">${n}</div>`;
         list.appendChild(card);
     });
 }
+
 function showToday() { currentTab="today"; updateActive(0); document.getElementById('filter-bar').style.display='none'; const now=new Date(); const t=(now.getMonth()+1).toString().padStart(2,'0')+"/"+now.getDate().toString().padStart(2,'0'); render(scheduleData.filter(i=>i.date===t), `今日班表 (${t})`); }
 function showThisWeek(m="all") { currentTab="week"; updateActive(1); document.getElementById('filter-bar').style.display='flex'; let f=(m==="all")?scheduleData:scheduleData.filter(i=>i.date&&i.date.startsWith(m)); render(f, m==="all"?"全店總表":`${m}月 全店總表`); }
 function showMyOff(m="all") { currentTab="off"; updateActive(2); document.getElementById('filter-bar').style.display='flex'; let my=offRequestsData.filter(i=>String(i["員工姓名"]).trim()===String(currentUser).trim()); if(m!=="all") my=my.filter(i=>i["申請日期"]&&i["申請日期"].startsWith(m)); render(my, `${currentUser} 的申請紀錄`, 'off'); }
