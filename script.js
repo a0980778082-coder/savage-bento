@@ -41,17 +41,15 @@ function showOffCalendar() {
     currentTab = "applyOff";
     updateActive(3); 
     document.getElementById('filter-bar').style.display = 'none';
-    document.getElementById('user-welcome').innerHTML = "<div>選擇日期辦理排休 (可選未來30天)</div>";
+    document.getElementById('user-welcome').innerHTML = "<div><b>請選擇日期辦理排休</b><br><small style='color:#7f8c8d;'>可多選，開放未來30天</small></div>";
     const list = document.getElementById('schedule-list');
     list.innerHTML = "";
     selectedDates = [];
     
-    // 建立日曆容器
     const cal = document.createElement('div');
     cal.style = "display:grid; grid-template-columns:repeat(7,1fr); gap:5px; background:white; padding:15px; border-radius:15px; box-shadow:0 2px 8px rgba(0,0,0,0.05);";
     
     const now = new Date();
-    // 設定為 30 天，確保能看到下個月
     for(let i=0; i<30; i++){
         let d = new Date();
         d.setDate(now.getDate() + i);
@@ -59,14 +57,13 @@ function showOffCalendar() {
         
         let dayBtn = document.createElement('div');
         dayBtn.innerText = dateStr;
-        dayBtn.style = "padding:10px 2px; border:1px solid #eee; text-align:center; border-radius:8px; font-size:11px; cursor:pointer; background:#fff;";
+        dayBtn.style = "padding:12px 2px; border:1px solid #eee; text-align:center; border-radius:8px; font-size:12px; cursor:pointer; background:#fff;";
         
         dayBtn.onclick = async () => {
             if(selectedDates.includes(dateStr)) {
                 selectedDates = selectedDates.filter(x => x !== dateStr);
                 dayBtn.style.background = "white"; dayBtn.style.color = "black";
             } else {
-                // 點擊即檢查衝突
                 dayBtn.innerText = "...";
                 try {
                     const resp = await fetch(`${API_URL}?mode=checkConflict&date=${dateStr}`);
@@ -87,16 +84,15 @@ function showOffCalendar() {
     }
     list.appendChild(cal);
 
-    // 下方表單
     const form = document.createElement('div');
     form.innerHTML = `
-        <select id="offSlot" style="width:100%; padding:12px; margin:15px 0; border:1px solid #ddd; border-radius:8px;">
+        <select id="offSlot" style="width:100%; padding:15px; margin:15px 0; border:1px solid #ddd; border-radius:10px; font-size:16px;">
             <option value="全天排休">全天排休</option>
             <option value="早班排休">早班排休</option>
             <option value="晚班排休">晚班排休</option>
         </select>
-        <textarea id="offNote" placeholder="排休原因" style="width:100%; height:80px; padding:10px; border:1px solid #ddd; border-radius:8px; box-sizing:border-box; font-size:16px;"></textarea>
-        <button onclick="submitOff()" id="subBtn" style="width:100%; padding:15px; background:#e74c3c; color:white; border:none; border-radius:12px; margin-top:15px; font-size:18px; font-weight:bold;">送出排休申請</button>
+        <textarea id="offNote" placeholder="排休原因 (選填)" style="width:100%; height:80px; padding:15px; border:1px solid #ddd; border-radius:10px; box-sizing:border-box; font-size:16px;"></textarea>
+        <button onclick="submitOff()" id="subBtn" style="width:100%; padding:18px; background:#e74c3c; color:white; border:none; border-radius:12px; margin-top:20px; font-size:18px; font-weight:bold;">送出排休申請</button>
     `;
     list.appendChild(form);
 }
@@ -123,7 +119,7 @@ async function submitOff() {
     } catch (e) { alert("申請失敗"); btn.innerText = "送出排休申請"; btn.disabled = false; }
 }
 
-// --- 其餘共用函式 (省略，請接續之前的 render, showToday 等函式) ---
+// --- 輔助功能 ---
 function showSubsidyModal() {
     const m = `<div id="subsidy-modal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:9999;"><div style="background:white;padding:25px;border-radius:15px;width:85%;max-width:400px;"><h3 style="margin:0 0 15px 0;">⛽ 外送里程回報</h3><label>起始里程：<input type="number" id="startKm" style="width:100%;padding:10px;margin-top:5px;"></label><label>結束里程：<input type="number" id="endKm" style="width:100%;padding:10px;margin-top:5px;"></label><label>今日油價：<input type="number" step="0.1" id="oilPrice" value="29.5" style="width:100%;padding:10px;margin-top:5px;"></label><div style="display:flex;gap:10px;margin-top:20px;"><button onclick="submitSubsidy()" style="flex:1;padding:12px;background:#27ae60;color:white;border:none;border-radius:8px;font-weight:bold;">送出</button><button onclick="document.getElementById('subsidy-modal').remove()" style="flex:1;padding:12px;background:#999;color:white;border:none;border-radius:8px;">取消</button></div></div></div>`;
     document.body.insertAdjacentHTML('beforeend', m);
