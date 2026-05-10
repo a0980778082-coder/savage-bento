@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbyBESdAi94VoMo8AAa_1FgRfWA-qyL-SUxsqUuQhSmdqof81gyRSAKEiTRRPkemc6j5/exec"; 
+const API_URL = "在此貼上你的最新部署網址"; 
 
 let scheduleData = [];
 let offRequestsData = [];
@@ -36,76 +36,94 @@ async function login() {
     } catch (e) { alert("連線失敗"); btn.innerText = "進入系統"; btn.disabled = false; }
 }
 
-// --- 排休彈窗邏輯 (含防呆檢查) ---
-function toggleModal(show) {
-    const modal = document.getElementById('off-form-modal');
-    modal.style.display = show ? 'flex' : 'none';
-    if(show) {
-        selectedDates = [];
-        document.getElementById('selected-dates-container').innerHTML = "";
-        document.getElementById('offNote').value = "";
-    }
-}
-
-async function addDateToList() {
-    const dateInput = document.getElementById('offDateInput');
-    const dateVal = dateInput.value;
-    if (!dateVal) return;
+// --- 核心：動態生成 30 天日曆 + 衝突檢查 ---
+function showOffCalendar() {
+    currentTab = "applyOff";
+    updateActive(3); 
+    document.getElementById('filter-bar').style.display = 'none';
+    document.getElementById('user-welcome').innerHTML = "<div>選擇日期辦理排休 (可選未來30天)</div>";
+    const list = document.getElementById('schedule-list');
+    list.innerHTML = "";
+    selectedDates = [];
     
-    const d = new Date(dateVal);
-    const dateStr = (d.getMonth() + 1).toString().padStart(2, '0') + "/" + d.getDate().toString().padStart(2, '0');
+    // 建立日曆容器
+    const cal = document.createElement('div');
+    cal.style = "display:grid; grid-template-columns:repeat(7,1fr); gap:5px; background:white; padding:15px; border-radius:15px; box-shadow:0 2px 8px rgba(0,0,0,0.05);";
     
-    if (selectedDates.includes(dateStr)) return alert("此日期已在清單中");
-
-    // 防呆檢查：詢問大腦當天有沒有人請假
-    const checkBtn = event.target;
-    const originalText = checkBtn.innerText;
-    checkBtn.innerText = "..."; 
-    try {
-        const resp = await fetch(`${API_URL}?mode=checkConflict&date=${dateStr}`);
-        const result = await resp.text();
-        if (result !== "NONE") {
-            const others = result.split(",").filter(n => n !== currentUser);
-            if (others.length > 0) {
-                alert(`⚠️ 注意！\n【${others.join("、")}】當天已經排休了。\n建議先與同事協調換班，確保人力充足喔！`);
+    const now = new Date();
+    // 設定為 30 天，確保能看到下個月
+    for(let i=0; i<30; i++){
+        let d = new Date();
+        d.setDate(now.getDate() + i);
+        let dateStr = (d.getMonth()+1).toString().padStart(2,'0') + "/" + d.getDate().toString().padStart(2,'0');
+        
+        let dayBtn = document.createElement('div');
+        dayBtn.innerText = dateStr;
+        dayBtn.style = "padding:10px 2px; border:1px solid #eee; text-align:center; border-radius:8px; font-size:11px; cursor:pointer; background:#fff;";
+        
+        dayBtn.onclick = async () => {
+            if(selectedDates.includes(dateStr)) {
+                selectedDates = selectedDates.filter(x => x !== dateStr);
+                dayBtn.style.background = "white"; dayBtn.style.color = "black";
+            } else {
+                // 點擊即檢查衝突
+                dayBtn.innerText = "...";
+                try {
+                    const resp = await fetch(`${API_URL}?mode=checkConflict&date=${dateStr}`);
+                    const result = await resp.text();
+                    if (result !== "NONE") {
+                        const others = result.split(",").filter(n => n !== currentUser);
+                        if (others.length > 0) {
+                            alert(`⚠️ 注意！\n【${others.join("、")}】當天已排休。\n建議先協調，確保店內人力充足。`);
+                        }
+                    }
+                } catch (e) {}
+                dayBtn.innerText = dateStr;
+                selectedDates.push(dateStr);
+                dayBtn.style.background = "#e74c3c"; dayBtn.style.color = "white";
             }
-        }
-    } catch (e) { }
-    checkBtn.innerText = originalText;
+        };
+        cal.appendChild(dayBtn);
+    }
+    list.appendChild(cal);
 
-    selectedDates.push(dateStr);
-    renderSelectedDates();
+    // 下方表單
+    const form = document.createElement('div');
+    form.innerHTML = `
+        <select id="offSlot" style="width:100%; padding:12px; margin:15px 0; border:1px solid #ddd; border-radius:8px;">
+            <option value="全天排休">全天排休</option>
+            <option value="早班排休">早班排休</option>
+            <option value="晚班排休">晚班排休</option>
+        </select>
+        <textarea id="offNote" placeholder="排休原因" style="width:100%; height:80px; padding:10px; border:1px solid #ddd; border-radius:8px; box-sizing:border-box; font-size:16px;"></textarea>
+        <button onclick="submitOff()" id="subBtn" style="width:100%; padding:15px; background:#e74c3c; color:white; border:none; border-radius:12px; margin-top:15px; font-size:18px; font-weight:bold;">送出排休申請</button>
+    `;
+    list.appendChild(form);
 }
 
-function renderSelectedDates() {
-    const container = document.getElementById('selected-dates-container');
-    container.innerHTML = selectedDates.map(d => `<span style="display:inline-block; background:#e74c3c; color:white; padding:5px 10px; border-radius:15px; margin:3px; font-size:12px;">${d} <span onclick="removeDate('${d}')" style="margin-left:5px; cursor:pointer;">×</span></span>`).join('');
-}
-
-function removeDate(date) {
-    selectedDates = selectedDates.filter(d => d !== date);
-    renderSelectedDates();
-}
-
-async function submitMultipleOffRequests() {
-    if (selectedDates.length === 0) return alert("請先加入日期");
-    const btn = document.getElementById('submitOffBtn');
+async function submitOff() {
+    if(selectedDates.length === 0) return alert("請先選擇日期");
+    const btn = document.getElementById('subBtn');
     btn.innerText = "傳送中..."; btn.disabled = true;
     try {
         const resp = await fetch(API_URL, {
             method: 'POST',
-            body: JSON.stringify({ mode: "offRequest", name: currentUser, dates: selectedDates, slot: "全天排休", note: document.getElementById('offNote').value })
+            body: JSON.stringify({
+                mode: "offRequest",
+                name: currentUser,
+                dates: selectedDates,
+                slot: document.getElementById('offSlot').value,
+                note: document.getElementById('offNote').value
+            })
         });
-        if (await resp.text() === "SUCCESS") {
+        if(await resp.text() === "SUCCESS") {
             alert("✅ 申請成功！");
-            toggleModal(false);
             location.reload();
         }
-    } catch (e) { alert("申請失敗"); }
-    btn.innerText = "送出申請"; btn.disabled = false;
+    } catch (e) { alert("申請失敗"); btn.innerText = "送出排休申請"; btn.disabled = false; }
 }
 
-// --- 其餘功能模組 ---
+// --- 其餘共用函式 (省略，請接續之前的 render, showToday 等函式) ---
 function showSubsidyModal() {
     const m = `<div id="subsidy-modal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:9999;"><div style="background:white;padding:25px;border-radius:15px;width:85%;max-width:400px;"><h3 style="margin:0 0 15px 0;">⛽ 外送里程回報</h3><label>起始里程：<input type="number" id="startKm" style="width:100%;padding:10px;margin-top:5px;"></label><label>結束里程：<input type="number" id="endKm" style="width:100%;padding:10px;margin-top:5px;"></label><label>今日油價：<input type="number" step="0.1" id="oilPrice" value="29.5" style="width:100%;padding:10px;margin-top:5px;"></label><div style="display:flex;gap:10px;margin-top:20px;"><button onclick="submitSubsidy()" style="flex:1;padding:12px;background:#27ae60;color:white;border:none;border-radius:8px;font-weight:bold;">送出</button><button onclick="document.getElementById('subsidy-modal').remove()" style="flex:1;padding:12px;background:#999;color:white;border:none;border-radius:8px;">取消</button></div></div></div>`;
     document.body.insertAdjacentHTML('beforeend', m);
