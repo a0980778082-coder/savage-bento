@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小野人餐盒 - 老闆管理後台</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; color: #2c3e50; }
+        .container { max-width: 500px; margin: 0 auto; background: white; padding: 25px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        h2 { text-align: center; margin-top: 0; color: #34495e; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        label { font-weight: bold; display: block; margin-top: 15px; margin-bottom: 5px; font-size: 14px; color: #7f8c8d; }
+        input { width: 100%; height: 45px; padding: 10px; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; font-size: 16px; margin-bottom: 5px; }
+        button { width: 100%; height: 50px; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor:pointer; margin-top: 20px; color: white; transition: 0.2s; }
+        .btn-add { background-color: #27ae60; }
+        .btn-add:hover { background-color: #219653; }
+        .btn-del { background-color: #c0392b; margin-top: 15px; }
+        .btn-del:hover { background-color: #a62c2b; }
+        .hint { font-size: 12px; color: #95a5a6; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🦁 小野人人員管理後台</h2>
+    
+    <div style="background: #ebf5fb; padding: 12px; border-radius: 10px; font-size: 13px; color: #2980b9; margin-bottom: 10px; font-weight: bold;">
+        提示：此處修改後，會自動同步到 Google 試算表的 Users 分頁，App 登入名單也會即時更新！
+    </div>
+
+    <div style="border: 1px dashed #ddd; padding: 15px; border-radius: 12px; background: #fafafa;">
+        <h4 style="margin: 0; color: #27ae60;">➕ 新增或修改員工</h4>
+        <label>員工姓名</label>
+        <input type="text" id="addName" placeholder="例如：阿土伯">
+        
+        <label>登入密碼 (4位數 PIN 碼)</label>
+        <input type="password" id="addPin" placeholder="例如：1234" inputmode="numeric");">
+        
+        <label>薪資設定 (工讀填時薪 / 正職填底薪)</label>
+        <input type="number" id="addRate" placeholder="例如：190 或 35000">
+        <div class="hint">如果是工讀請填時薪（如 190），月薪制人員直接填固定底薪（如 35000）。</div>
+        
+        <button class="btn-add" onclick="manageUser('addUser')">確認新增 / 更新資料</button>
+    </div>
+
+    <div style="margin-top: 30px;"></div>
+
+    <div style="border: 1px dashed #ddd; padding: 15px; border-radius: 12px; background: #fff5f5;">
+        <h4 style="margin: 0; color: #c0392b;">❌ 移除離職員工</h4>
+        <label>要移除的員工姓名</label>
+        <input type="text" id="delName" placeholder="例如：張三">
+        <div class="hint" style="color: #c0392b;">注意：移除後，該員工將立刻無法登入小野人系統！</div>
+        
+        <button class="btn-del" onclick="manageUser('deleteUser')">確認移除該員工</button>
+    </div>
+</div>
+
+<script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbyBESdAi94VoMo8AAa_1FgRfWA-qyL-SUxsqUuQhSmdqof81gyRSAKEiTRRPkemc6j5/exec";
+
+    async function manageUser(mode) {
+        let name = "", pin = "", rate = "";
+        
+        if (mode === 'addUser') {
+            name = document.getElementById('addName').value.trim();
+            pin = document.getElementById('addPin').value.trim();
+            rate = document.getElementById('addRate').value.trim();
+            if (!name || !pin || !rate) return alert("請填寫完整的新增資料！");
+        } else if (mode === 'deleteUser') {
+            name = document.getElementById('delName').value.trim();
+            if (!name) return alert("請輸入要移除的員工姓名！");
+            if (!confirm(`確定要徹底移除員工【${name}】嗎？`)) return;
+        }
+
+        const btn = event.target;
+        const originalText = btn.innerText;
+        btn.innerText = "處理中，請稍候...";
+        btn.disabled = true;
+
+        try {
+            const resp = await fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify({
+                    mode: mode,
+                    name: name,
+                    pin: pin,
+                    rate: rate
+                })
+            });
+            const result = await resp.text();
+            if (result === "SUCCESS") {
+                alert("🎉 處理成功！試算表與系統已同步更新。");
+                document.getElementById('addName').value = "";
+                document.getElementById('addPin').value = "";
+                document.getElementById('addRate').value = "";
+                document.getElementById('delName').value = "";
+            } else {
+                alert("❌ 處理失敗：" + result);
+            }
+        } catch (e) {
+            alert("連線失敗，請檢查大腦部署網址是否正確！");
+        }
+        btn.innerText = originalText;
+        btn.disabled = false;
+    }
+</script>
+
+</body>
+</html>
