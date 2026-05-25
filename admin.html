@@ -33,7 +33,7 @@
         <input type="text" id="addName" placeholder="例如：阿土伯">
         
         <label>登入密碼 (4位數 PIN 碼)</label>
-        <input type="password" id="addPin" placeholder="例如：1234" inputmode="numeric");">
+        <input type="password" id="addPin" placeholder="例如：1234" inputmode="numeric">
         
         <label>薪資設定 (工讀填時薪 / 正職填底薪)</label>
         <input type="number" id="addRate" placeholder="例如：190 或 35000">
@@ -55,6 +55,7 @@
 </div>
 
 <script>
+    // 已自動綁定雄哥的最正確大腦網址
     const API_URL = "https://script.google.com/macros/s/AKfycbyBESdAi94VoMo8AAa_1FgRfWA-qyL-SUxsqUuQhSmdqof81gyRSAKEiTRRPkemc6j5/exec";
 
     async function manageUser(mode) {
@@ -97,7 +98,7 @@
                 alert("❌ 處理失敗：" + result);
             }
         } catch (e) {
-            alert("連線失敗，請檢查大腦部署網址是否正確！");
+            alert("連線失敗，請稍後再試或確認 Google 試算表有無權限問題！");
         }
         btn.innerText = originalText;
         btn.disabled = false;
