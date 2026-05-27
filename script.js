@@ -40,7 +40,7 @@ function showOffCalendar() {
     currentTab = "applyOff";
     updateActive(3); 
     document.getElementById('filter-bar').style.display = 'none';
-    document.getElementById('user-welcome').innerHTML = "<div><b>請選擇日期辦理排休</b><br><small style='color:#7f8c8d;'>可多選，開放未來30天</small></div>";
+    document.getElementById('user-welcome').innerHTML = "<div><b>請選擇日期辦理排休</b><br><small style='color:#7f8c8d;'>可多選，已開放本月及下個月整個月</small></div>";
     const list = document.getElementById('schedule-list');
     list.innerHTML = "";
     selectedDates = [];
@@ -49,37 +49,48 @@ function showOffCalendar() {
     cal.style = "display:grid; grid-template-columns:repeat(7,1fr); gap:5px; background:white; padding:15px; border-radius:15px; box-shadow:0 2px 8px rgba(0,0,0,0.05);";
     
     const now = new Date();
-    for(let i=0; i<30; i++){
-        let d = new Date();
-        d.setDate(now.getDate() + i);
-        let dateStr = (d.getMonth()+1).toString().padStart(2,'0') + "/" + d.getDate().toString().padStart(2,'0');
-        
-        let dayBtn = document.createElement('div');
-        dayBtn.innerText = dateStr;
-        dayBtn.style = "padding:12px 2px; border:1px solid #eee; text-align:center; border-radius:8px; font-size:12px; cursor:pointer; background:#fff;";
-        
-        dayBtn.onclick = async () => {
-            if(selectedDates.includes(dateStr)) {
-                selectedDates = selectedDates.filter(x => x !== dateStr);
-                dayBtn.style.background = "white"; dayBtn.style.color = "black";
-            } else {
-                dayBtn.innerText = "...";
-                try {
-                    const resp = await fetch(`${API_URL}?mode=checkConflict&date=${dateStr}`);
-                    const result = await resp.text();
-                    if (result !== "NONE") {
-                        const others = result.split(",").filter(n => n !== currentUser);
-                        if (others.length > 0) {
-                            alert(`⚠️ 注意！\n【${others.join("、")}】當天已排休。\n建議先協調，確保店內人力充足。`);
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth(); 
+    
+    // 💡 自動產生從本月 1 號，一直到下個月最後一天的所有日期
+    const startDate = new Date(currentYear, currentMonth, 1);
+    const endDate = new Date(currentYear, currentMonth + 2, 0); 
+    
+    let loopDate = new Date(startDate);
+    while (loopDate <= endDate) {
+        // 防呆：過去的日期不能補排休，只顯示今天（含）之後的日期
+        if (loopDate >= new Date(now.getFullYear(), now.getMonth(), now.getDate())) {
+            let d = new Date(loopDate);
+            let dateStr = (d.getMonth()+1).toString().padStart(2, '0') + "/" + d.getDate().toString().padStart(2, '0');
+            
+            let dayBtn = document.createElement('div');
+            dayBtn.innerText = dateStr;
+            dayBtn.style = "padding:12px 2px; border:1px solid #eee; text-align:center; border-radius:8px; font-size:12px; cursor:pointer; background:#fff;";
+            
+            dayBtn.onclick = async () => {
+                if(selectedDates.includes(dateStr)) {
+                    selectedDates = selectedDates.filter(x => x !== dateStr);
+                    dayBtn.style.background = "white"; dayBtn.style.color = "black";
+                } else {
+                    dayBtn.innerText = "...";
+                    try {
+                        const resp = await fetch(`${API_URL}?mode=checkConflict&date=${dateStr}`);
+                        const result = await resp.text();
+                        if (result !== "NONE") {
+                            const others = result.split(",").filter(n => n !== currentUser);
+                            if (others.length > 0) {
+                                alert(`⚠️ 注意！\n【${others.join("、")}】當天已排休。\n建議先協調，確保店內人力充足。`);
+                            }
                         }
-                    }
-                } catch (e) {}
-                dayBtn.innerText = dateStr;
-                selectedDates.push(dateStr);
-                dayBtn.style.background = "#e74c3c"; dayBtn.style.color = "white";
-            }
-        };
-        cal.appendChild(dayBtn);
+                    } catch (e) {}
+                    dayBtn.innerText = dateStr;
+                    selectedDates.push(dateStr);
+                    dayBtn.style.background = "#e74c3c"; dayBtn.style.color = "white";
+                }
+            };
+            cal.appendChild(dayBtn);
+        }
+        loopDate.setDate(loopDate.getDate() + 1);
     }
     list.appendChild(cal);
 
@@ -168,7 +179,6 @@ function render(data, title, type = 'schedule') {
         const n = type === 'off' ? item["員工姓名"] : item.employeeName;
         const s = type === 'off' ? item["申請時段"] : item.timeSlot;
         
-        // 🚨 關鍵修正：只有在看「班表」時才隱藏老闆，看「申請」時不隱藏！
         if (type === 'schedule' && (n === "信雄" || n === "小金")) return;
         
         const card = document.createElement('div');
