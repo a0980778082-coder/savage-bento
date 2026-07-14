@@ -1,57 +1,35 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>小野人夥伴系統 7.7</title>
-    <link rel="stylesheet" href="style.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>小野人夥伴系統 8.0</title>
+<link rel="stylesheet" href="style.css">
 </head>
-<body style="margin: 0; background-color: #f4f7f6; font-family: -apple-system, sans-serif;">
+<body>
+<section id="login">
+  <div class="panel">
+    <div class="badge">SAVAGE MEAL BOX</div>
+    <h1>小野人餐盒</h1><p>夥伴專屬系統</p>
+    <select id="name"><option value="">選擇您的名字</option></select>
+    <input id="pin" type="password" inputmode="numeric" placeholder="輸入密碼">
+    <button id="loginBtn" onclick="login()">登入系統</button>
+    <div id="msg"></div>
+  </div>
+</section>
 
-    <div id="login-screen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #34495e; display: flex; justify-content: center; align-items: center; z-index: 1000;">
-        <div style="background: white; padding: 30px; border-radius: 20px; width: 85%; max-width: 350px; text-align: center;">
-            <h2 style="color: #2c3e50; margin: 0;">小野人餐盒</h2>
-            <p style="margin: 10px 0 25px; color: #7f8c8d;">夥伴專屬系統</p>
-            <select id="loginName" style="width: 100%; height: 55px; margin-bottom: 15px; padding: 10px; font-size: 18px; border: 1px solid #ddd; border-radius: 12px;">
-                <option value="">選擇您的名字</option>
-                <option value="信雄">信雄</option>
-                <option value="寀菁">寀菁</option>
-                <option value="妏妏">妏妏</option>
-                <option value="子怡">子怡</option>
-                <option value="子君">子君
-                </option>
-            </select>
-            <input type="password" id="loginPin" placeholder="輸入 4 位密碼" inputmode="numeric" style="width: 100%; height: 55px; margin-bottom: 15px; padding: 10px; font-size: 18px; border: 1px solid #ddd; border-radius: 12px; box-sizing: border-box; text-align: center;">
-            <button id="loginBtn" onclick="login()" style="width: 100%; height: 60px; background: #27ae60; color: white; border: none; border-radius: 12px; font-size: 20px; font-weight: bold;">登入系統</button>
-        </div>
-    </div>
-
-    <div id="main-app" style="display:none;">
-        <header style="display: flex; justify-content: space-between; align-items: center; padding: 15px; background: white; border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 50;">
-            <span id="user-welcome" style="font-weight: bold; font-size: 1.1em; color: #2c3e50;">載入中...</span>
-            <button onclick="location.reload()" style="background:none; border:1px solid #ccc; font-size:12px; padding:5px 10px; border-radius:5px;">登出</button>
-        </header>
-
-        <div id="filter-bar" style="background: white; padding: 10px; display: none; align-items: center; justify-content: center; border-bottom: 1px solid #eee; gap: 10px;">
-            <label style="font-size: 14px; font-weight: bold; color: #7f8c8d;">篩選月份：</label>
-            <select id="monthFilter" onchange="applyMonthFilter()" style="padding: 5px 15px; border-radius: 8px; border: 1px solid #ddd; font-size: 14px;">
-                <option value="all">顯示全部</option>
-                <option value="05">5月</option>
-                <option value="06">6月</option>
-                <option value="07">7月</option>
-            </select>
-        </div>
-
-        <section id="schedule-list" style="padding: 10px 10px 100px 10px;"></section>
-
-        <nav class="tab-bar" style="position: fixed; bottom: 0; left: 0; width: 100%; height: 65px; background: white; border-top: 1px solid #eee; display: flex; align-items: center; z-index: 100;">
-            <button onclick="showToday()" style="flex: 1; background: none; border: none; font-weight: bold; height: 100%; font-size: 13px; color: #7f8c8d;">今日班表</button>
-            <button onclick="showThisWeek()" style="flex: 1; background: none; border: none; font-weight: bold; height: 100%; font-size: 13px; color: #7f8c8d;">全店總表</button>
-            <button onclick="showMyOff()" style="flex: 1; background: none; border: none; font-weight: bold; height: 100%; font-size: 13px; color: #7f8c8d;">我的申請</button>
-            <button onclick="showOffCalendar()" style="flex: 1.2; background:#e74c3c; color:white; border: none; font-weight: bold; height: 100%; font-size: 14px;">我要排休</button>
-        </nav>
-    </div>
-
-    <script src="script.js?v=7.7"></script>
+<section id="app" class="hidden">
+  <header><div><b id="title">載入中</b><small id="sub"></small></div><button class="outline" onclick="location.reload()">登出</button></header>
+  <div id="filter" class="hidden"><label>月份</label><select id="month" onchange="applyFilter()"></select></div>
+  <main id="list"></main>
+  <nav>
+    <button data-tab="today" onclick="showToday()">今日班表</button>
+    <button data-tab="all" onclick="showAll()">全店總表</button>
+    <button data-tab="off" onclick="showMyOff()">我的申請</button>
+    <button data-tab="apply" class="red" onclick="showApply()">我要排休</button>
+  </nav>
+</section>
+<div id="toast" class="hidden"></div>
+<script src="script.js?v=8.0"></script>
 </body>
 </html>

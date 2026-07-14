@@ -1,195 +1,50 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbyBESdAi94VoMo8AAa_1FgRfWA-qyL-SUxsqUuQhSmdqof81gyRSAKEiTRRPkemc6j5/exec"; 
+const API_URL="https://script.google.com/macros/s/AKfycbzbKd4NFaC9_ZsQ0GKYtGU8c3sd3uAp4BMipyX-5BhFYSbbh4S78ubgG_oMLFFU7FWg/exec";
+let schedules=[],offs=[],user="",token="",tab="today",selected=[],summary={},months=[];
 
-let scheduleData = [];
-let offRequestsData = [];
-let userRate = 0; 
-let currentUser = "";
-let currentPin = "";
-let currentTab = "today";
-let serverCalculatedHrs = 0;
-let serverCalculatedBasePay = 0;
-let selectedDates = [];
+document.addEventListener("DOMContentLoaded",()=>{loadUsers();document.getElementById("pin").addEventListener("keydown",e=>{if(e.key==="Enter")login()})});
 
-async function login() {
-    currentUser = document.getElementById('loginName').value;
-    currentPin = document.getElementById('loginPin').value;
-    if (!currentUser || !currentPin) return alert("請登入");
-    const btn = document.getElementById('loginBtn');
-    btn.innerText = "驗證中..."; btn.disabled = true;
-    try {
-        const resp = await fetch(`${API_URL}?name=${encodeURIComponent(currentUser)}&pin=${currentPin}`);
-        const res = await resp.json();
-        if (res === "AUTH_FAILED") {
-            alert("❌ 密碼錯誤");
-            btn.innerText = "進入系統"; btn.disabled = false;
-        } else {
-            scheduleData = res.schedule || [];
-            offRequestsData = res.offRequests || [];
-            userRate = res.rate || 0; 
-            window.currentBonus = res.monthlyBonus || 0;
-            serverCalculatedHrs = res.calculatedHrs || 0;
-            serverCalculatedBasePay = res.calculatedBasePay || 0;
-            document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('main-app').style.display = 'block';
-            showToday();
-        }
-    } catch (e) { alert("連線失敗"); btn.innerText = "進入系統"; btn.disabled = false; }
+async function api(data,auth=true){
+  if(API_URL.includes("請貼上")) throw Error("尚未設定 Apps Script 網址");
+  const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({...data,token:auth?token:undefined})});
+  const t=await r.text(); let j; try{j=JSON.parse(t)}catch{throw Error(t||"伺服器回應錯誤")}
+  if(j.ok===false) throw Error(j.message||"操作失敗"); return j;
 }
-
-function showOffCalendar() {
-    currentTab = "applyOff";
-    updateActive(3); 
-    document.getElementById('filter-bar').style.display = 'none';
-    document.getElementById('user-welcome').innerHTML = "<div><b>請選擇日期辦理排休</b><br><small style='color:#7f8c8d;'>可多選，已開放本月及下個月整個月</small></div>";
-    const list = document.getElementById('schedule-list');
-    list.innerHTML = "";
-    selectedDates = [];
-    
-    const cal = document.createElement('div');
-    cal.style = "display:grid; grid-template-columns:repeat(7,1fr); gap:5px; background:white; padding:15px; border-radius:15px; box-shadow:0 2px 8px rgba(0,0,0,0.05);";
-    
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth(); 
-    
-    // 💡 自動產生從本月 1 號，一直到下個月最後一天的所有日期
-    const startDate = new Date(currentYear, currentMonth, 1);
-    const endDate = new Date(currentYear, currentMonth + 2, 0); 
-    
-    let loopDate = new Date(startDate);
-    while (loopDate <= endDate) {
-        // 防呆：過去的日期不能補排休，只顯示今天（含）之後的日期
-        if (loopDate >= new Date(now.getFullYear(), now.getMonth(), now.getDate())) {
-            let d = new Date(loopDate);
-            let dateStr = (d.getMonth()+1).toString().padStart(2, '0') + "/" + d.getDate().toString().padStart(2, '0');
-            
-            let dayBtn = document.createElement('div');
-            dayBtn.innerText = dateStr;
-            dayBtn.style = "padding:12px 2px; border:1px solid #eee; text-align:center; border-radius:8px; font-size:12px; cursor:pointer; background:#fff;";
-            
-            dayBtn.onclick = async () => {
-                if(selectedDates.includes(dateStr)) {
-                    selectedDates = selectedDates.filter(x => x !== dateStr);
-                    dayBtn.style.background = "white"; dayBtn.style.color = "black";
-                } else {
-                    dayBtn.innerText = "...";
-                    try {
-                        const resp = await fetch(`${API_URL}?mode=checkConflict&date=${dateStr}`);
-                        const result = await resp.text();
-                        if (result !== "NONE") {
-                            const others = result.split(",").filter(n => n !== currentUser);
-                            if (others.length > 0) {
-                                alert(`⚠️ 注意！\n【${others.join("、")}】當天已排休。\n建議先協調，確保店內人力充足。`);
-                            }
-                        }
-                    } catch (e) {}
-                    dayBtn.innerText = dateStr;
-                    selectedDates.push(dateStr);
-                    dayBtn.style.background = "#e74c3c"; dayBtn.style.color = "white";
-                }
-            };
-            cal.appendChild(dayBtn);
-        }
-        loopDate.setDate(loopDate.getDate() + 1);
-    }
-    list.appendChild(cal);
-
-    const form = document.createElement('div');
-    form.innerHTML = `
-        <select id="offSlot" style="width:100%; padding:15px; margin:15px 0; border:1px solid #ddd; border-radius:10px; font-size:16px;">
-            <option value="全天排休">全天排休</option>
-            <option value="早班排休">早班排休</option>
-            <option value="晚班排休">晚班排休</option>
-        </select>
-        <textarea id="offNote" placeholder="排休原因 (選填)" style="width:100%; height:80px; padding:15px; border:1px solid #ddd; border-radius:10px; box-sizing:border-box; font-size:16px;"></textarea>
-        <button onclick="submitOff()" id="subBtn" style="width:100%; padding:18px; background:#e74c3c; color:white; border:none; border-radius:12px; margin-top:20px; font-size:18px; font-weight:bold;">送出排休申請</button>
-    `;
-    list.appendChild(form);
+async function loadUsers(){try{const r=await api({mode:"publicConfig"},false),s=document.getElementById("name");(r.users||[]).forEach(n=>s.insertAdjacentHTML("beforeend",`<option>${esc(n)}</option>`))}catch(e){msg(e.message)}}
+async function login(){
+  const n=document.getElementById("name").value.trim(),p=document.getElementById("pin").value.trim(),b=document.getElementById("loginBtn");
+  if(!n||!p)return msg("請選擇姓名並輸入密碼");
+  busy(b,true,"驗證中...");
+  try{const r=await api({mode:"login",name:n,pin:p},false);user=r.user.name;token=r.token;schedules=r.schedule||[];offs=r.offRequests||[];summary=r.summary||{};months=r.months||[];document.getElementById("login").classList.add("hidden");document.getElementById("app").classList.remove("hidden");buildMonths();showToday()}catch(e){msg(e.message)}finally{busy(b,false,"登入系統")}
 }
-
-async function submitOff() {
-    if(selectedDates.length === 0) return alert("請先選擇日期");
-    const btn = document.getElementById('subBtn');
-    btn.innerText = "傳送中..."; btn.disabled = true;
-    try {
-        const resp = await fetch(API_URL, {
-            method: 'POST',
-            body: JSON.stringify({
-                mode: "offRequest",
-                name: currentUser,
-                dates: selectedDates,
-                slot: document.getElementById('offSlot').value,
-                note: document.getElementById('offNote').value
-            })
-        });
-        if(await resp.text() === "SUCCESS") {
-            alert("✅ 申請成功！");
-            location.reload();
-        }
-    } catch (e) { alert("申請失敗"); btn.innerText = "送出排休申請"; btn.disabled = false; }
+function buildMonths(){const s=document.getElementById("month");s.innerHTML='<option value="all">顯示全部</option>';months.forEach(m=>s.insertAdjacentHTML("beforeend",`<option value="${m}">${Number(m)} 月</option>`))}
+function active(x){tab=x;document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active",b.dataset.tab===x))}
+function filter(v){document.getElementById("filter").classList.toggle("hidden",!v)}
+function head(t,s=""){document.getElementById("title").textContent=t;document.getElementById("sub").textContent=s}
+function today(){const d=new Date();return`${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}`}
+function showToday(){active("today");filter(false);const d=today();renderSchedule(schedules.filter(x=>x.date===d),`今日班表（${d}）`,false)}
+function showAll(){active("all");filter(true);applyFilter()}
+function showMyOff(){active("off");filter(true);applyFilter()}
+function applyFilter(){const m=document.getElementById("month").value;if(tab==="all"){const a=m==="all"?schedules:schedules.filter(x=>x.date?.startsWith(m+"/"));renderSchedule(a,m==="all"?"全店總表":`${Number(m)} 月全店總表`,true)}else if(tab==="off"){let a=offs.filter(x=>x.employeeName===user);if(m!=="all")a=a.filter(x=>x.requestDate?.startsWith(m+"/"));renderOff(a,`${user} 的排休申請`)}}
+function renderSchedule(a,t,showSum){
+  head(t,`登入者：${user}`);const l=document.getElementById("list");l.innerHTML="";
+  if(showSum)l.innerHTML=`<div class="summary"><div>本月預估薪資</div><div class="money">$${Number(summary.netPay||0).toLocaleString()}</div><small>工時 ${Number(summary.hours||0).toFixed(1)} 小時・外送補貼 $${Number(summary.oilSubsidy||0).toLocaleString()}</small><div class="actions"><button class="blue" onclick="salarySlip()">查看薪資單</button><button class="outline" onclick="showOil()">里程回報</button></div></div>`;
+  if(!a.length)return l.insertAdjacentHTML("beforeend",'<div class="empty">查無資料</div>');
+  a.forEach(x=>l.insertAdjacentHTML("beforeend",`<div class="card ${x.timeSlot?.includes("排休")?"off":""}"><div><div class="date">${esc(x.date)} ${esc(x.weekday||"")}</div><div class="shift">${esc(x.timeSlot||"")}</div></div><div class="name">${esc(x.employeeName||"")}</div></div>`))
 }
-
-function showSubsidyModal() {
-    const m = `<div id="subsidy-modal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:9999;"><div style="background:white;padding:25px;border-radius:15px;width:85%;max-width:400px;"><h3 style="margin:0 0 15px 0;">⛽ 外送里程回報</h3><label>起始里程：<input type="number" id="startKm" style="width:100%;padding:10px;margin-top:5px;"></label><label>結束里程：<input type="number" id="endKm" style="width:100%;padding:10px;margin-top:5px;"></label><label>今日油價：<input type="number" step="0.1" id="oilPrice" value="29.5" style="width:100%;padding:10px;margin-top:5px;"></label><div style="display:flex;gap:10px;margin-top:20px;"><button onclick="submitSubsidy()" style="flex:1;padding:12px;background:#27ae60;color:white;border:none;border-radius:8px;font-weight:bold;">送出</button><button onclick="document.getElementById('subsidy-modal').remove()" style="flex:1;padding:12px;background:#999;color:white;border:none;border-radius:8px;">取消</button></div></div></div>`;
-    document.body.insertAdjacentHTML('beforeend', m);
+function renderOff(a,t){
+  head(t,`登入者：${user}`);const l=document.getElementById("list");l.innerHTML=a.length?"":'<div class="empty">尚無排休申請</div>';
+  a.forEach(x=>{const c=x.status==="已核准"?"approved":(x.status==="待審核"?"pendingP":"rejected");l.insertAdjacentHTML("beforeend",`<div class="card off ${x.status==="待審核"?"pending":""}"><div><div class="date">${esc(x.requestDate)}</div><div class="shift">${esc(x.slot)}</div><span class="pill ${c}">${esc(x.status||"待審核")}</span></div><div class="name">${esc(x.note||"")}</div></div>`)})
 }
-
-async function submitSubsidy() {
-    const s = document.getElementById('startKm').value; const e = document.getElementById('endKm').value; const o = document.getElementById('oilPrice').value;
-    if(!s||!e||!o) return alert("填完整喔");
-    try {
-        const r = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ mode: "oil", name: currentUser, start: s, end: e, oilPrice: o }) });
-        if(await r.text() === "SUCCESS") { alert("✅ 已回報"); document.getElementById('subsidy-modal').remove(); applyMonthFilter(); }
-    } catch (err) { alert("失敗"); }
+function showApply(){
+  active("apply");filter(false);selected=[];head("我要排休","可多選未來 60 天");const l=document.getElementById("list");l.innerHTML='<div class="calendar" id="cal"></div>';
+  const c=document.getElementById("cal");
+  for(let i=0;i<60;i++){const d=new Date();d.setDate(d.getDate()+i);const ds=`${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}`,b=document.createElement("button");b.className="day";b.textContent=ds;b.onclick=async()=>{if(selected.includes(ds)){selected=selected.filter(x=>x!==ds);b.classList.remove("selected");return}try{const r=await api({mode:"checkConflict",date:ds});const n=(r.conflicts||[]).filter(x=>x!==user);if(n.length)alert(`注意：${n.join("、")} 當天已有排休申請。`)}catch(e){toast(e.message)}selected.push(ds);b.classList.add("selected")};c.appendChild(b)}
+  l.insertAdjacentHTML("beforeend",'<div class="form"><select id="slot"><option>全天排休</option><option>早班排休</option><option>晚班排休</option></select><textarea id="note" placeholder="排休原因（選填）"></textarea><button id="offBtn" class="red" style="width:100%" onclick="submitOff()">送出排休申請</button></div>')
 }
-
-function downloadPDF(month) { window.location.href = `${API_URL}?mode=downloadPDF&name=${encodeURIComponent(currentUser)}&pin=${currentPin}&month=${month}`; }
-
-async function applyMonthFilter() {
-    const m = document.getElementById('monthFilter').value;
-    if (m !== 'all') {
-        document.getElementById('user-welcome').innerHTML = "<div>同步中...</div>";
-        try {
-            const resp = await fetch(`${API_URL}?name=${encodeURIComponent(currentUser)}&pin=${currentPin}&month=${m}`);
-            const res = await resp.json();
-            window.currentBonus = res.monthlyBonus || 0;
-            serverCalculatedHrs = res.calculatedHrs || 0;
-            serverCalculatedBasePay = res.calculatedBasePay || 0;
-            scheduleData = res.schedule || [];
-            offRequestsData = res.offRequests || [];
-        } catch (e) { }
-    }
-    if (currentTab === "week") showThisWeek(m);
-    else if (currentTab === "off") showMyOff(m);
-}
-
-function render(data, title, type = 'schedule') {
-    const m = document.getElementById('monthFilter').value;
-    let sub = "";
-    if (type === 'schedule' && m !== 'all' && currentTab === 'week') {
-        let total = (userRate >= 1000) ? (Number(userRate) + Number(window.currentBonus)) : (serverCalculatedBasePay + Number(window.currentBonus));
-        sub = `<div style="font-size:0.85em;color:#e67e22;margin-top:5px;font-weight:bold;">本月預估：$${total.toLocaleString()}<br><button onclick="downloadPDF('${m}')" style="margin-top:8px;padding:5px 10px;background:#34495e;color:white;border:none;border-radius:5px;font-size:12px;">查看薪資單</button> <button onclick="showSubsidyModal()" style="padding:5px 10px;background:#2980b9;color:white;border:none;border-radius:5px;font-size:12px;">⛽ 里程回報</button></div>`;
-    }
-    document.getElementById('user-welcome').innerHTML = `<div>${title}${sub}</div>`;
-    const list = document.getElementById('schedule-list');
-    list.innerHTML = data.length === 0 ? '<p style="text-align:center;padding:50px;color:#999;">查無紀錄</p>' : "";
-    
-    data.forEach(item => {
-        const d = type === 'off' ? item["申請日期"] : item.date;
-        const n = type === 'off' ? item["員工姓名"] : item.employeeName;
-        const s = type === 'off' ? item["申請時段"] : item.timeSlot;
-        
-        if (type === 'schedule' && (n === "信雄" || n === "小金")) return;
-        
-        const card = document.createElement('div');
-        const isOff = type === 'off' || (s && s.includes('排休'));
-        card.style = `border-left:8px solid ${isOff?'#e74c3c':'#27ae60'};background:white;margin:12px 0;padding:15px;border-radius:12px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 3px 6px rgba(0,0,0,0.05);`;
-        card.innerHTML = `<div style="flex:1;"><div style="font-weight:bold;">${d}</div><div style="color:${isOff?'#e74c3c':'#7f8c8d'};margin-top:5px;font-weight:bold;">${s}</div></div><div style="font-weight:bold;color:#34495e;">${n}</div>`;
-        list.appendChild(card);
-    });
-}
-
-function showToday() { currentTab="today"; updateActive(0); document.getElementById('filter-bar').style.display='none'; const now=new Date(); const t=(now.getMonth()+1).toString().padStart(2,'0')+"/"+now.getDate().toString().padStart(2,'0'); render(scheduleData.filter(i=>i.date===t), `今日班表 (${t})`); }
-function showThisWeek(m="all") { currentTab="week"; updateActive(1); document.getElementById('filter-bar').style.display='flex'; let f=(m==="all")?scheduleData:scheduleData.filter(i=>i.date&&i.date.startsWith(m)); render(f, m==="all"?"全店總表":`${m}月 全店總表`); }
-function showMyOff(m="all") { currentTab="off"; updateActive(2); document.getElementById('filter-bar').style.display='flex'; let my=offRequestsData.filter(i=>String(i["員工姓名"]).trim()===String(currentUser).trim()); if(m!=="all") my=my.filter(i=>i["申請日期"]&&i["申請日期"].startsWith(m)); render(my, `${currentUser} 的申請紀錄`, 'off'); }
-function updateActive(idx) { const btns=document.querySelectorAll('.tab-bar button'); btns.forEach((b,i)=>b.style.color=(i===idx)?'#e74c3c':'#7f8c8d'); }
+async function submitOff(){if(!selected.length)return toast("請先選擇日期");const b=document.getElementById("offBtn");busy(b,true,"傳送中...");try{const r=await api({mode:"offRequest",dates:selected,slot:document.getElementById("slot").value,note:document.getElementById("note").value.trim()});offs=r.offRequests||offs;toast("排休申請已送出");showMyOff()}catch(e){toast(e.message)}finally{busy(b,false,"送出排休申請")}}
+function showOil(){document.getElementById("list").innerHTML='<div class="form"><h3>外送里程回報</h3><input id="start" type="number" placeholder="起始里程"><input id="end" type="number" placeholder="結束里程"><input id="oil" type="number" value="29.5" step="0.1" placeholder="今日 92 油價"><button id="oilBtn" style="width:100%;background:#27ae60;color:#fff" onclick="submitOil()">送出里程</button></div>'}
+async function submitOil(){const s=Number(start.value),e=Number(end.value),o=Number(oil.value),b=document.getElementById("oilBtn");if(!s||!e||!o)return toast("請完整填寫");if(e<=s)return toast("結束里程必須大於起始里程");if(e-s>300)return toast("單次里程超過 300 公里");busy(b,true,"傳送中...");try{const r=await api({mode:"oil",start:s,end:e,oilPrice:o});summary=r.summary||summary;toast("里程回報成功");showAll()}catch(x){toast(x.message)}finally{busy(b,false,"送出里程")}}
+async function salarySlip(){try{const m=document.getElementById("month").value==="all"?String(new Date().getMonth()+1).padStart(2,"0"):document.getElementById("month").value,r=await api({mode:"salarySlip",month:m}),w=window.open("","_blank");if(!w)return toast("瀏覽器阻擋新視窗");w.document.write(r.html);w.document.close()}catch(e){toast(e.message)}}
+function busy(b,x,t){if(b){b.disabled=x;b.textContent=t}}function msg(t){document.getElementById("msg").textContent=t||""}
+function toast(t){const x=document.getElementById("toast");x.textContent=t;x.classList.remove("hidden");clearTimeout(toast.t);toast.t=setTimeout(()=>x.classList.add("hidden"),2600)}
+function esc(v){return String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}
